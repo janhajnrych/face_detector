@@ -13,9 +13,3 @@ add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test"
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/haarcascade_frontalface_default.xml
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/data)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/model_32.onnx
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/data)
-
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data/bisenet.onnx
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/data)
-
