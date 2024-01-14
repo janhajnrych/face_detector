@@ -1,29 +1,27 @@
 #ifndef DETECTOR_H
 #define DETECTOR_H
-#include <opencv2/objdetect/objdetect.hpp>
-#include <vector>
+#include <exception>
 #include <string>
+#include <opencv2/objdetect/objdetect.hpp>
 
-class DetectionException: public std::exception
+
+class FaceDetector
 {
 public:
-    explicit DetectionException(const std::string& message): message("DetectorException: " + message) {}
-    virtual ~DetectionException() noexcept {}
-    virtual const char* what() const noexcept {
-        return message.c_str();
-    }
-
+    class Exception: public std::exception
+    {
+    public:
+        explicit Exception(const std::string& message);
+        virtual ~Exception() noexcept;
+        virtual const char* what() const noexcept;
+    protected:
+        std::string message;
+    };
+    void load(const std::string& cascadePath);
+    void detect(cv::Mat cvImage, std::vector<cv::Rect>& detections) const;
 protected:
-    std::string message;
-};
-
-class Detector
-{
-public:
-    explicit Detector(const std::string& cascadePath);
-    cv::Mat drawFaces(cv::Mat cvImage);
-private:
-    cv::CascadeClassifier face_cascade;
+    cv::CascadeClassifier cascade;
+    unsigned minSize = 64;
 };
 
 

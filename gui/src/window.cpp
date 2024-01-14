@@ -1,5 +1,6 @@
 #include "../include/window.h"
 #include <QPalette>
+#include <QBoxLayout>
 #include "../include/form.h"
 #include "../include/pipeline.h"
 
@@ -15,10 +16,11 @@ int MainWindow::runApp(int argc, char* argv[], std::unique_ptr<Pipeline> pipelin
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication app(argc, argv);
     MainWindow window;
-    window.resize(650, 500);
-    window.layout()->setContentsMargins(5, 5, 5, 5);
+    window.resize(750, 850);
+    auto layout = new QBoxLayout(QBoxLayout::LeftToRight, &window);
+    layout->setContentsMargins(5, 5, 5, 5);
     auto form = new CaptureForm(std::move(pipeline), &window);
-    window.layout()->addWidget(form);
+    layout->addWidget(form, 0, Qt::AlignCenter);
     window.setLayout(layout);
     window.show();
     return app.exec();
