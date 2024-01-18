@@ -19,7 +19,7 @@ public:
     virtual ~ImageListModel();
     int rowCount(const QModelIndex& parent) const;
     QVariant data(const QModelIndex& index, int role) const;
-    QString getName(const QModelIndex& parent) const;
+    QString getName(const QModelIndex& index) const;
 public slots:
     void addImage(QImage image, QString name);
     void removeImage(const QString name);

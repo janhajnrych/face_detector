@@ -1,30 +1,60 @@
 #include "../include/conversions.h"
 #include "../include/pipeline.h"
+#include "../../detector/include/image_db.h"
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <variant>
 
 
 ImagePipeline::ImagePipeline(std::filesystem::path dirPath): dirPath(dirPath) {
-    workflow = std::make_shared<Workflow>();
-    engine = std::make_unique<Engine>(workflow);
+    engine = std::make_unique<Engine>();
+    engine->listen(Engine::EventType::FaceSaved, [this](auto event){
+        emit faceAdded(convertToQt(event.image), QString::fromStdString(event.data));
+    });
+    engine->listen(Engine::EventType::FaceRemoved, [this](auto event){
+        emit faceRemoved(QString::fromStdString(event.data));
+    });
 }
-
 
 ImagePipeline::~ImagePipeline() {
     engine->terminate();
 }
 
-QImage ImagePipeline::processFrame(QImage image, ControlMessage message) {
+void ImagePipeline::acceptMessage(ControlMessage message) {
     Engine::Config newConfig;
     newConfig.boxSize = message.boxSize;
     newConfig.flags = message.flags;
-    auto result = engine->acceptFrame(convertToCv(image), newConfig);
-    return convertToQt(result);
+    engine->changePreset(newConfig);
 }
 
+QImage ImagePipeline::read() {
+    return convertToQt(engine->read());
+}
+
+void ImagePipeline::saveFace(QString name) {
+    Engine::Config newConfig;
+    newConfig.filename = name.toStdString();
+    newConfig.flags.set(Operation::SaveFaceToDb, 1);
+    engine->executeOnce(newConfig);
+}
+
+void ImagePipeline::removeFace(QString name) {
+    Engine::Config newConfig;
+    newConfig.filename = name.toStdString();
+    newConfig.flags.set(Operation::RemoveFaceFromDb, 1);
+    engine->executeOnce(newConfig);
+}
+
+void ImagePipeline::loadImageDir() {
+    engine->loadDirToDb(dirPath);
+}
 
 void ImagePipeline::start() {
     engine->start();
+}
+
+bool ImagePipeline::isRunning() const {
+    return engine->isRunning();
 }
 
 

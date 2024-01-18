@@ -6,17 +6,23 @@
 #include <memory>
 #include <unordered_map>
 #include <optional>
+#include "image_db.h"
 #include <filesystem>
 #include <deque>
 #include <tuple>
-#include <boost/circular_buffer.hpp>
+#include "segment.h"
+#include "component.h"
+#include "exception.h"
 
 class FaceDetector;
+class ImageDb;
+class Classifier;
+class Segmenter;
 
-
-class Workflow
+class Workflow: Component
 {
 public:
+    using Exception = ComponentException<Workflow>;
     explicit Workflow();
     void detectFaces(cv::Mat frame, float relativeBoxSize = 1.0);
     cv::Mat drawFaceRects(cv::Mat image);
@@ -24,12 +30,24 @@ public:
     const std::vector<cv::Rect>& getAllFaces() const;
     std::vector<cv::Rect> getLargerFaces(unsigned minArea) const;
     std::vector<cv::Rect> getLargerFaces(unsigned minArea, size_t maxNumber) const;
-    const std::string saveExt = ".png";
+    cv::Mat drawText(cv::Mat image, cv::Point pos, const std::string& text) const;
+    cv::Mat drawFaceNames(cv::Mat image, float offset = 0.f);
+    cv::Mat saveFace(cv::Mat image, const std::string& name);
+    cv::Mat loadFace(std::filesystem::path path, const std::string& name);
+    cv::Mat segment(cv::Mat image);
+    bool removeFace(const std::string& name);
+    const std::string defaultSaveExt = ".png";
+    const std::unordered_set<std::string> allowedExtensions = {".png",  ".jpg"};
+    void loadDirToDb(std::filesystem::path dirpath);
 private:
     std::unique_ptr<FaceDetector> faceDetector;
+    std::unique_ptr<Classifier> classifier;
+    std::unique_ptr<Segmenter> segmenter;
+    std::unique_ptr<ImageDb> imageDb;
     std::vector<cv::Rect> detections;
     cv::Scalar color = cv::Scalar(0, 0, 255);
-    static cv::Rect getLargestFace(const std::vector<cv::Rect>& faces);
+    static cv::Rect getLargestRect(const std::vector<cv::Rect>& faces);
+    std::string getFilename(const std::string& name) const;
     static cv::Rect clipRect(cv::Size size, cv::Rect rect);
 
 };

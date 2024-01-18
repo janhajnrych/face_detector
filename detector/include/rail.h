@@ -74,6 +74,7 @@ public:
 
 private:
     std::queue<T, Container> queue;
+protected:
     mutable std::mutex mutex;
     std::condition_variable condition;
 };

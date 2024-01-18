@@ -10,33 +10,56 @@
 #include <queue>
 #include <future>
 #include <atomic>
+#include "camera.h"
+#include "../../common/include/control_message.h"
+#include <chrono>
+#include "command.h"
+#include <variant>
+
 
 class Workflow;
+class Dispatcher;
+
 
 class Engine
 {
 public:
-    enum Operation { WithFaceRect=0, WithFaceNames=1, WithSegm=2};
-    using Flags = std::bitset<3>;
-    struct Config {
-        Flags flags = {0b000};
-        unsigned boxSize = 100;
-    };
-    explicit Engine(std::shared_ptr<Workflow> workfow);
-    cv::Mat acceptFrame(cv::Mat frame, const Config& config);
+    using Config = ControlMessage;
+    explicit Engine();
+    void changePreset(const Config& config);
+    void executeOnce(const Config& config);
+    cv::Mat read();
     void start();
     void terminate();
     ~Engine();
     bool isRunning() const;
+    friend class Dispatcher;
+    enum class EventType { FaceSaved=0, FaceRemoved=1};
+    struct Event {
+        EventType type;
+        cv::Mat image;
+        std::string data;
+    };
+    using Listener = std::function<void(Event)>;
+    void listen(EventType eventType, Listener listener);
+    void loadDirToDb(std::filesystem::path dirPath);
 private:
-    std::shared_ptr<Workflow> workflow;
-    std::thread producerThread, consumerThread;
-    DataRail<std::tuple<cv::Mat, Config>> inputRail;
-    DataRail<cv::Mat> outputRail;
+    std::unique_ptr<Workflow> workflow;
+    std::unique_ptr<Dispatcher> dispatcher;
+    std::thread producerThread, consumerThread, cameraThread;
+    DataRail<std::tuple<cv::Mat, unsigned>> inputRail;
     DataRail<cv::Mat> outputBuffer;
-    cv::Mat processFrame(cv::Mat frame, Config config);
+    using TaskResult = std::tuple<cv::Mat, int>;
+    using Task = std::packaged_task<TaskResult(cv::Mat)>;
+    DataRail<Task> taskQueue;
+    //cv::Mat processFrame(cv::Mat frame, Config config);
     std::atomic_bool finished;
     std::chrono::milliseconds readWaitTime;
+    Camera camera;
+    std::atomic<unsigned> flags;
+    std::atomic<unsigned> boxSize;
+    std::unordered_map<EventType, Listener> listeners;
+
 };
 
 

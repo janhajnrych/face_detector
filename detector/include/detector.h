@@ -3,20 +3,14 @@
 #include <exception>
 #include <string>
 #include <opencv2/objdetect/objdetect.hpp>
+#include "component.h"
+#include "exception.h"
 
 
-class FaceDetector
+class FaceDetector: public Component
 {
 public:
-    class Exception: public std::exception
-    {
-    public:
-        explicit Exception(const std::string& message);
-        virtual ~Exception() noexcept;
-        virtual const char* what() const noexcept;
-    protected:
-        std::string message;
-    };
+    using Exception = ComponentException<FaceDetector>;
     void load(const std::string& cascadePath);
     void detect(cv::Mat cvImage, std::vector<cv::Rect>& detections) const;
 protected:

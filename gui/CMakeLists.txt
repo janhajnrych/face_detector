@@ -3,7 +3,7 @@ project(gui CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui Multimedia)
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui Multimedia Charts)
 
 file(GLOB_RECURSE MOC_HEADER_LIST "include/*.hpp" "include/*.h")
 file(GLOB_RECURSE SRC_LIST "src/*.cpp" "src/*.c")
@@ -18,16 +18,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 SET_PROPERTY(GLOBAL PROPERTY AUTOMOC_FOLDER automoc)
 
-# # set ( RESOURCES ..qrc )
-#QT5_WRAP_UI( UI_HEADERS ${UI_LIST} )
 
-#add_library(modern_library lib.cpp ${HEADER_LIST})
-#target_include_directories(gui PUBLIC include)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../common" "${CMAKE_CURRENT_BINARY_DIR}/common")
 
-
-
-#add_executable(${PROJECT_NAME} ${SRC_LIST} ${HEADER_LIST})
 add_library(${PROJECT_NAME} ${SRC_LIST} ${HEADER_LIST})
-target_link_libraries(${PROJECT_NAME} PUBLIC Qt::Core Qt::Gui Qt5::Widgets Qt5::Multimedia)
+target_link_libraries(${PROJECT_NAME} PUBLIC Qt::Core Qt::Gui Qt5::Widgets Qt5::Multimedia Qt5::Charts common)
 
 

@@ -19,10 +19,14 @@ public:
 
     explicit ImagePipeline(std::filesystem::path dirPath);
     ~ImagePipeline();
-    QImage processFrame(QImage image, ControlMessage message);
+    void acceptMessage(ControlMessage message);
+    QImage read();
+    void saveFace(QString name);
+    void removeFace(QString name);
+    void loadImageDir();
     void start();
+    bool isRunning() const;
 private:
-    std::shared_ptr<Workflow> workflow;
     std::unique_ptr<Engine> engine;
     const std::string saveExt = ".png";
     std::filesystem::path dirPath;

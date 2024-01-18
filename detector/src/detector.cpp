@@ -4,15 +4,6 @@
 #include "../include/detector.h"
 
 
-FaceDetector::Exception::Exception(const std::string& message): message("DetectorException: " + message) {}
-
-FaceDetector::Exception::~Exception() noexcept {}
-
-const char* FaceDetector::Exception::what() const noexcept {
-    return message.c_str();
-}
-
-
 void FaceDetector::load(const std::string& cascadePath) {
     cascade.load(cascadePath);
     if(cascade.empty()){

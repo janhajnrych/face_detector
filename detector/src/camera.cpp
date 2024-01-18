@@ -1,0 +1,68 @@
+#include "../include/camera.h"
+#include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <exception>
+#include <filesystem>
+#include <iostream>
+#include <algorithm>
+
+
+Camera::Camera(): fps(0), readWaitTime(std::chrono::milliseconds(500)) {}
+
+Camera::~Camera() {
+    stop();
+}
+
+void Camera::start() {
+    capture.open(-1);
+    running = true;
+    if (capture.isOpened()){
+        fps = capture.get(cv::CAP_PROP_FPS);
+        int width = capture.get(cv::CAP_PROP_FRAME_WIDTH);
+        int height = capture.get(cv::CAP_PROP_FRAME_HEIGHT);
+        frame = cv::Mat(width, height, CV_8UC3, cv::Scalar(0, 0, 0));
+        readWaitTime = std::chrono::milliseconds(2*1000/fps);
+    }
+}
+
+void Camera::stop() {
+    if (running && capture.isOpened()){
+        capture.release();
+    }
+    running = false;
+}
+
+void Camera::next() {
+    if (!capture.isOpened())
+        return;
+    auto success = capture.read(frame);
+    if (!success)
+        return;
+    if (!running){
+        stop();
+        return;
+    } else {
+        if (frame.empty())
+            return;
+        frameQueue.write(frame);
+    }
+}
+
+bool Camera::isRunning() const {
+    return running;
+}
+
+cv::Mat Camera::getLastFrame() const {
+    return frame;
+}
+
+cv::Mat Camera::read() {
+    return frameQueue.readWithTimeout(readWaitTime).value_or(getLastFrame());
+}
+
+int Camera::getFps() const {
+    return fps;
+}
+
+
+

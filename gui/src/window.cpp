@@ -16,7 +16,7 @@ int MainWindow::runApp(int argc, char* argv[], std::unique_ptr<Pipeline> pipelin
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication app(argc, argv);
     MainWindow window;
-    window.resize(750, 850);
+    window.resize(580, 920);
     auto layout = new QBoxLayout(QBoxLayout::LeftToRight, &window);
     layout->setContentsMargins(5, 5, 5, 5);
     auto form = new CaptureForm(std::move(pipeline), &window);
