@@ -20,7 +20,8 @@ void Camera::start() {
         fps = capture.get(cv::CAP_PROP_FPS);
         int width = capture.get(cv::CAP_PROP_FRAME_WIDTH);
         int height = capture.get(cv::CAP_PROP_FRAME_HEIGHT);
-        frame = cv::Mat(width, height, CV_8UC3, cv::Scalar(0, 0, 0));
+        lastFrame = cv::Mat(width, height, CV_8UC3, cv::Scalar(0, 0, 0));
+        tempFrame = cv::Mat(width, height, CV_8UC3, cv::Scalar(0, 0, 0));
         readWaitTime = std::chrono::milliseconds(1000/fps);
     }
 }
@@ -35,16 +36,17 @@ void Camera::stop() {
 void Camera::next() {
     if (!capture.isOpened())
         return;
-    auto success = capture.read(frame);
+    auto success = capture.read(tempFrame);
     if (!success)
         return;
     if (!running){
         stop();
         return;
     } else {
-        if (frame.empty())
+        if (tempFrame.empty() || paused)
             return;
-        frameQueue.write(frame);
+        tempFrame.copyTo(lastFrame);
+        frameQueue.write(tempFrame);
     }
 }
 
@@ -53,7 +55,7 @@ bool Camera::isRunning() const {
 }
 
 cv::Mat Camera::getLastFrame() const {
-    return frame;
+    return lastFrame;
 }
 
 cv::Mat Camera::read() {
@@ -62,6 +64,14 @@ cv::Mat Camera::read() {
 
 int Camera::getFps() const {
     return fps;
+}
+
+void Camera::setPause(bool newValue) {
+    this->paused = newValue;
+}
+
+bool Camera::isPaused() const {
+    return this->paused;
 }
 
 

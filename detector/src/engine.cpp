@@ -54,10 +54,9 @@ public:
     }
 
     void createDbTasks(CmdMessage message, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
-        for (auto operation: dbOpOrder) {
+        for (auto [operation, factory]: dbTaskFactories) {
             if (!message.dbFlags[operation])
                 continue;
-            auto factory = dbTaskFactories[operation];
             auto taskFunc = factory(message, workflow);
             Engine::Task&& task = Engine::Task(withErrorCode(taskFunc));
             taskQueue.writeMove(std::move(task));
@@ -117,9 +116,6 @@ private:
     std::unordered_map<ImageOperation, ImageTaskFactory> imageTaskFactories;
     std::unordered_map<DbOperation, DbTaskFactory> dbTaskFactories;
     std::vector<ImageOperation> imageOpOrder;
-    std::vector<DbOperation> dbOpOrder;
-
-
 };
 
 
@@ -152,7 +148,7 @@ void Engine::start() {
                 continue;
             ControlMessage config;
             config.boxSize = boxSize;
-            config.opFlags = ControlFlags(flags);
+            config.opFlags = ControlFlags(opFlags);
             unsigned nTasksStart = taskQueue.size();
             this->dispatcher->createImageTasks(config, workflow.get(), taskQueue);
             inputRail.write(std::make_tuple(frame, taskQueue.size() - nTasksStart));
@@ -198,12 +194,20 @@ cv::Mat Engine::read() {
 }
 
 void Engine::changePreset(const ControlMessage& message) {
-    flags = static_cast<unsigned>(message.opFlags.to_ulong());
+    opFlags = static_cast<unsigned>(message.opFlags.to_ulong());
     boxSize = message.boxSize;
 }
 
 void Engine::executeOnce(const CmdMessage& message) {
     dispatcher->createDbTasks(message, workflow.get(), taskQueue);
+}
+
+void Engine::executeOnce(const CameraMessage& message) {
+    if (!camera.isPaused() && message.camFlags[CameraOperation::PauseCamera])
+        camera.setPause(true);
+    else if (camera.isPaused() && message.camFlags[CameraOperation::UnpauseCamera])
+        camera.setPause(false);
+
 }
 
 void Engine::listen(EventType eventType, Listener listener) {

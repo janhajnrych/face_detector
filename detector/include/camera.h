@@ -20,10 +20,13 @@ public:
     cv::Mat getLastFrame() const;
     cv::Mat read();
     int getFps() const;
+    void setPause(bool newValue);
+    bool isPaused() const;
 private:
-    cv::Mat frame;
+    cv::Mat lastFrame, tempFrame;
     DataRail<cv::Mat> frameQueue;
     std::atomic_bool running = false;
+    std::atomic_bool paused = false;
     cv::VideoCapture capture;
     std::chrono::milliseconds readWaitTime;
     int fps;

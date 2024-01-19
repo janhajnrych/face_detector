@@ -114,11 +114,17 @@ void CaptureForm::updateActivity(bool checked)
 void CaptureForm::pause() {
     paused = true;
     updateControlButtons();
+    CameraMessage message;
+    message.camFlags.set(CameraOperation::PauseCamera, 1);
+    pipeline->scheduleCommand(message);
 }
 
 void CaptureForm::unpause() {
     paused = false;
     updateControlButtons();
+    CameraMessage message;
+    message.camFlags.set(CameraOperation::UnpauseCamera, 1);
+    pipeline->scheduleCommand(message);
 }
 
 

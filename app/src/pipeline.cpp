@@ -34,6 +34,10 @@ void ImagePipeline::scheduleCommand(CmdMessage message) {
     engine->executeOnce(message);
 }
 
+void ImagePipeline::scheduleCommand(CameraMessage message) {
+    engine->executeOnce(message);
+}
+
 void ImagePipeline::loadImageDir() {
     engine->loadDirToDb(dirPath);
 }

@@ -20,6 +20,7 @@ public:
     virtual QImage read() =0;
     virtual void changePreset(ControlMessage message) =0;
     virtual void scheduleCommand(CmdMessage message) =0;
+    virtual void scheduleCommand(CameraMessage message) =0;
     virtual void loadImageDir() =0;
     virtual void start() =0;
     virtual bool isRunning() const =0;

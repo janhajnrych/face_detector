@@ -20,6 +20,7 @@ public:
     ~ImagePipeline();
     void changePreset(ControlMessage message);
     void scheduleCommand(CmdMessage message);
+    void scheduleCommand(CameraMessage message);
     QImage read();
     void loadImageDir();
     void start();

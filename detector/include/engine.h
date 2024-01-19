@@ -28,6 +28,7 @@ public:
     explicit Engine();
     void changePreset(const ControlMessage& config);
     void executeOnce(const CmdMessage& config);
+    void executeOnce(const CameraMessage& config);
     cv::Mat read();
     void start();
     void terminate();
@@ -58,7 +59,7 @@ private:
     std::atomic_bool finished;
     std::chrono::milliseconds readWaitTime;
     Camera camera;
-    std::atomic<unsigned> flags;
+    std::atomic<unsigned> opFlags, camFlags;
     std::atomic<unsigned> boxSize;
     std::unordered_map<EventType, Listener> listeners;
     std::unordered_map<ProfileType, std::unique_ptr<Profiler>> profilers;
