@@ -16,19 +16,16 @@ class Workflow;
 
 class ImagePipeline: public Pipeline {
 public:
-
     explicit ImagePipeline(std::filesystem::path dirPath);
     ~ImagePipeline();
-    void acceptMessage(ControlMessage message);
+    void changePreset(ControlMessage message);
+    void scheduleCommand(CmdMessage message);
     QImage read();
-    void saveFace(QString name);
-    void removeFace(QString name);
     void loadImageDir();
     void start();
     bool isRunning() const;
 private:
     std::unique_ptr<Engine> engine;
-    const std::string saveExt = ".png";
     std::filesystem::path dirPath;
 };
 

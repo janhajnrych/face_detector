@@ -38,7 +38,7 @@ private:
     std::shared_ptr<Pipeline> pipeline;
     void updateControlButtons();
     ImageListModel* imageListModel;
-    void updateSwitchButton(QPushButton* button, const QString& name, Operation op);
+    void updateSwitchButton(QPushButton* button, const QString& name, ImageOperation op);
     QString getFlagColor(bool flag) const;
     void sendMessage();
     QTimer* timer;

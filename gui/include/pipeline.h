@@ -18,9 +18,8 @@ class Pipeline: public QObject
     Q_OBJECT
 public:
     virtual QImage read() =0;
-    virtual void acceptMessage(ControlMessage message) =0;
-    virtual void saveFace(QString name) =0;
-    virtual void removeFace(QString name) =0;
+    virtual void changePreset(ControlMessage message) =0;
+    virtual void scheduleCommand(CmdMessage message) =0;
     virtual void loadImageDir() =0;
     virtual void start() =0;
     virtual bool isRunning() const =0;

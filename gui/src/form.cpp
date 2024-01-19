@@ -47,7 +47,7 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     connect(ui.locateCheckBox, &QCheckBox::toggled, this, &CaptureForm::toggleDetection);
     ui.label->setText("waiting");
     ui.activityCheckBox->setCheckState(active ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
-    ui.locateCheckBox->setCheckState(controlFlags[Operation::Detection] ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+    ui.locateCheckBox->setCheckState(controlFlags[ImageOperation::Detection] ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
     imageListModel = new ImageListModel(ui.listView);
     ui.listView->setModel(imageListModel);
     configureListView(ui.listView);
@@ -58,13 +58,19 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     ui.boxSizeSlider->setMinimum(50);
     ui.boxSizeSlider->setValue(100);
     ui.boxSizeSlider->setMaximum(200);
+    connect(ui.boxSizeSlider, &QSlider::valueChanged, this, [this](auto newValue){
+        ControlMessage message;
+        message.opFlags = controlFlags;
+        message.boxSize = newValue;
+        this->pipeline->changePreset(message);
+    });
     connect(ui.addFaceButton, &QPushButton::clicked, this, &CaptureForm::saveFace);
     connect(this->pipeline.get(), &Pipeline::faceAdded, this->imageListModel, &ImageListModel::addImage);
     connect(this->pipeline.get(), &Pipeline::faceRemoved, this->imageListModel, &ImageListModel::removeImage);
     connect(ui.removeFaceButton, &QPushButton::clicked, this, &CaptureForm::removeFace);
     this->pipeline->loadImageDir();
-    updateSwitchButton(ui.segmentButton, "Segment", Operation::Segmentation);
-    updateSwitchButton(ui.detectButton, "Classify", Operation::Recognition);
+    updateSwitchButton(ui.segmentButton, "Segment", ImageOperation::Segmentation);
+    updateSwitchButton(ui.detectButton, "Classify", ImageOperation::Recognition);
     this->pipeline->start();
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &CaptureForm::tick);
@@ -75,14 +81,20 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
 void CaptureForm::saveFace() {
     this->pause();
     auto name = showIndentificationDialog(this);
-    if (name.has_value())
-        this->pipeline->saveFace(name.value());
+    if (name.has_value()){
+        CmdMessage message;
+        message.dbFlags.set(DbOperation::SaveFaceToDb, 1);
+        message.filename = name.value().toStdString();
+    }
     this->unpause();
 }
 
 void CaptureForm::removeFace() {
     auto index = ui.listView->currentIndex();
-    this->pipeline->removeFace(imageListModel->getName(index));
+    CmdMessage message;
+    message.dbFlags.set(DbOperation::RemoveFaceFromDb, 1);
+    message.filename = imageListModel->getName(index).toStdString();
+    pipeline->scheduleCommand(message);
 }
 
 void CaptureForm::tick() {
@@ -95,9 +107,9 @@ void CaptureForm::tick() {
 
 void CaptureForm::sendMessage() {
     ControlMessage message;
-    message.flags = controlFlags;
+    message.opFlags = controlFlags;
     message.boxSize = ui.boxSizeSlider->value();
-    pipeline->acceptMessage(message);
+    pipeline->changePreset(message);
 }
 
 void CaptureForm::updateActivity(bool checked)
@@ -118,20 +130,20 @@ void CaptureForm::unpause() {
 
 
 void CaptureForm::toggleClassification() {
-    auto op = Operation::Recognition;
+    auto op = ImageOperation::Recognition;
     controlFlags = controlFlags.flip(op);
     updateSwitchButton(ui.detectButton, "Classify", op);
     sendMessage();
 }
 
 void CaptureForm::toggleDetection() {
-    auto op = Operation::Detection;
+    auto op = ImageOperation::Detection;
     controlFlags = controlFlags.flip(op);
     sendMessage();
 }
 
 void CaptureForm::toggleSegmentation() {
-    auto op = Operation::Segmentation;
+    auto op = ImageOperation::Segmentation;
     controlFlags = controlFlags.flip(op);
     updateSwitchButton(ui.segmentButton, "Segmentation", op);
     sendMessage();
@@ -143,7 +155,7 @@ QString CaptureForm::getFlagColor(bool flag) const {
     return ui.stopButton->palette().base().color().name();
 }
 
-void CaptureForm::updateSwitchButton(QPushButton* button, const QString& name, Operation op) {
+void CaptureForm::updateSwitchButton(QPushButton* button, const QString& name, ImageOperation op) {
     auto flagValue = controlFlags[op];
     auto color = getFlagColor(flagValue);
     QString qss = QString("background-color: %1").arg(color);

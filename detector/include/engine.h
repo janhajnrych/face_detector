@@ -24,10 +24,9 @@ class Dispatcher;
 class Engine
 {
 public:
-    using Config = ControlMessage;
     explicit Engine();
-    void changePreset(const Config& config);
-    void executeOnce(const Config& config);
+    void changePreset(const ControlMessage& config);
+    void executeOnce(const CmdMessage& config);
     cv::Mat read();
     void start();
     void terminate();

@@ -20,29 +20,17 @@ ImagePipeline::~ImagePipeline() {
     engine->terminate();
 }
 
-void ImagePipeline::acceptMessage(ControlMessage message) {
-    Engine::Config newConfig;
-    newConfig.boxSize = message.boxSize;
-    newConfig.flags = message.flags;
-    engine->changePreset(newConfig);
-}
-
 QImage ImagePipeline::read() {
     return convertToQt(engine->read());
 }
 
-void ImagePipeline::saveFace(QString name) {
-    Engine::Config newConfig;
-    newConfig.filename = name.toStdString();
-    newConfig.flags.set(Operation::SaveFaceToDb, 1);
-    engine->executeOnce(newConfig);
+void ImagePipeline::changePreset(ControlMessage message) {
+    engine->changePreset(message);
 }
 
-void ImagePipeline::removeFace(QString name) {
-    Engine::Config newConfig;
-    newConfig.filename = name.toStdString();
-    newConfig.flags.set(Operation::RemoveFaceFromDb, 1);
-    engine->executeOnce(newConfig);
+
+void ImagePipeline::scheduleCommand(CmdMessage message) {
+    engine->executeOnce(message);
 }
 
 void ImagePipeline::loadImageDir() {

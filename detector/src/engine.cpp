@@ -10,40 +10,53 @@ class Dispatcher {
 private:
     using TaskFunction = std::function<Engine::TaskResult(cv::Mat)>;
     using ImageFunction = std::function<cv::Mat(cv::Mat)>;
-    using TaskFactory = std::function<ImageFunction(Engine::Config config, Workflow* workflow)>;
-
+    using ImageTaskFactory = std::function<ImageFunction(ControlMessage config, Workflow* workflow)>;
+    using DbTaskFactory = std::function<ImageFunction(CmdMessage config, Workflow* workflow)>;
 public:
 
     Dispatcher() {
-        factories[Operation::Detection] = [](Engine::Config, Workflow* workflow) {
+        imageTaskFactories[ImageOperation::Detection] = [](ControlMessage, Workflow* workflow) {
             return std::bind(&Workflow::drawFaceRects, workflow, std::placeholders::_1);
         };
-        factories[Operation::SaveFaceToDb] = [this](Engine::Config config, Workflow* workflow) {
+        imageTaskFactories[ImageOperation::Recognition] = [](ControlMessage message, Workflow* workflow) {
+            float offset = message.opFlags[ImageOperation::Detection] ? -0.5f: 0.f;
+            return std::bind(&Workflow::drawFaceNames, workflow, std::placeholders::_1, offset * message.boxSize);
+        };
+        imageTaskFactories[ImageOperation::Segmentation] = [](ControlMessage, Workflow* workflow){
+            return std::bind(&Workflow::segment, workflow, std::placeholders::_1);
+        };
+        imageOpOrder = {ImageOperation::Detection, ImageOperation::Segmentation, ImageOperation::Recognition};
+        imageOpOrder.shrink_to_fit();
+        dbTaskFactories[DbOperation::SaveFaceToDb] = [this](CmdMessage config, Workflow* workflow) {
             return std::bind(&Dispatcher::makeFaceWrite, this, std::placeholders::_1, workflow, config);
         };
-        factories[Operation::RemoveFaceFromDb] = [this](Engine::Config config, Workflow* workflow) {
+        dbTaskFactories[DbOperation::RemoveFaceFromDb] = [this](CmdMessage config, Workflow* workflow) {
             return std::bind(&Dispatcher::makeFaceRemove, this, std::placeholders::_1, workflow, config);
-        };
-        factories[Operation::Recognition] = [](Engine::Config config, Workflow* workflow) {
-            float offset = config.flags[Operation::Detection] ? -0.5f: 0.f;
-            return std::bind(&Workflow::drawFaceNames, workflow, std::placeholders::_1, offset * config.boxSize);
-        };
-        factories[Operation::Segmentation] = [](Engine::Config, Workflow* workflow){
-            return std::bind(&Workflow::segment, workflow, std::placeholders::_1);
         };
     }
 
-    void createTasks(Engine::Config config, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
-        auto flags = config.flags;
-        if (flags.any()){
+    void createImageTasks(ControlMessage config, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
+        if (config.opFlags.any()){
             auto func = std::bind(&Dispatcher::makeDetections, std::placeholders::_1, config.boxSize, workflow);
             Engine::Task&& task = Engine::Task(withErrorCode(func));
             taskQueue.writeMove(std::move(task));
         }
-        for (auto [operation, factory]: factories) {
-            if (!config.flags[operation])
+        for (auto operation: imageOpOrder) {
+            if (!config.opFlags[operation])
                 continue;
+            auto factory = imageTaskFactories[operation];
             auto taskFunc = factory(config, workflow);
+            Engine::Task&& task = Engine::Task(withErrorCode(taskFunc));
+            taskQueue.writeMove(std::move(task));
+        }
+    }
+
+    void createDbTasks(CmdMessage message, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
+        for (auto operation: dbOpOrder) {
+            if (!message.dbFlags[operation])
+                continue;
+            auto factory = dbTaskFactories[operation];
+            auto taskFunc = factory(message, workflow);
             Engine::Task&& task = Engine::Task(withErrorCode(taskFunc));
             taskQueue.writeMove(std::move(task));
         }
@@ -74,7 +87,7 @@ private:
         return frame;
     }
 
-    cv::Mat makeFaceWrite(cv::Mat frame, Workflow* workflow, Engine::Config config) {
+    cv::Mat makeFaceWrite(cv::Mat frame, Workflow* workflow, CmdMessage config) {
         auto name = config.filename.value_or("face.png");
         auto face = workflow->saveFace(frame, name);
         Engine::Event event;
@@ -85,7 +98,7 @@ private:
         return frame;
     }
 
-    cv::Mat makeFaceRemove(cv::Mat frame, Workflow* workflow, Engine::Config config) {
+    cv::Mat makeFaceRemove(cv::Mat frame, Workflow* workflow, CmdMessage config) {
         if (!config.filename.has_value())
             return frame;
         auto name = config.filename.value();
@@ -99,7 +112,11 @@ private:
         return frame;
     }
 
-    std::map<Operation, TaskFactory> factories;
+    std::unordered_map<ImageOperation, ImageTaskFactory> imageTaskFactories;
+    std::unordered_map<DbOperation, DbTaskFactory> dbTaskFactories;
+    std::vector<ImageOperation> imageOpOrder;
+    std::vector<DbOperation> dbOpOrder;
+
 
 };
 
@@ -126,11 +143,11 @@ void Engine::start() {
             auto frame = camera.read();
             if (frame.empty())
                 continue;
-            Config config;
+            ControlMessage config;
             config.boxSize = boxSize;
-            config.flags = ControlFlags(flags);
+            config.opFlags = ControlFlags(flags);
             unsigned nTasksStart = taskQueue.size();
-            this->dispatcher->createTasks(config, workflow.get(), taskQueue);
+            this->dispatcher->createImageTasks(config, workflow.get(), taskQueue);
             inputRail.write(std::make_tuple(frame, taskQueue.size() - nTasksStart));
         }
     });
@@ -166,13 +183,13 @@ cv::Mat Engine::read() {
     return outputBuffer.readWithTimeout(std::chrono::milliseconds(1000/camera.getFps())).value_or(camera.getLastFrame());
 }
 
-void Engine::changePreset(const Config& config) {
-    flags = static_cast<unsigned>(config.flags.to_ulong());
-    boxSize = config.boxSize;
+void Engine::changePreset(const ControlMessage& message) {
+    flags = static_cast<unsigned>(message.opFlags.to_ulong());
+    boxSize = message.boxSize;
 }
 
-void Engine::executeOnce(const Config& config) {
-    dispatcher->createTasks(config, workflow.get(), taskQueue);
+void Engine::executeOnce(const CmdMessage& message) {
+    dispatcher->createDbTasks(message, workflow.get(), taskQueue);
 }
 
 void Engine::listen(EventType eventType, Listener listener) {
