@@ -1,9 +1,7 @@
 #include "../include/form.h"
 #include <QCheckBox>
-#include <QCameraInfo>
 #include <QPushButton>
 #include <QUrl>
-#include <QAudioEncoderSettings>
 #include <QFileDialog>
 #include <QDir>
 #include <QListView>
@@ -12,7 +10,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <QMessageBox>
-#include <QChartView>
+
 
 void configureListView(QListView* imageList){
     imageList->setViewMode(QListView::IconMode);
@@ -34,11 +32,6 @@ QImage convert(QImage image, QSize size) {
     QImage scaledImage = image.scaled(size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     return scaledImage.convertToFormat(QImage::Format_RGB888, Qt::ColorOnly);
 }
-
-// QChartView* createChart() {
-//     return new QChartView();
-// }
-
 
 CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): QWidget(parent), pipeline(std::move(pipeline))
 {
@@ -74,7 +67,7 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     this->pipeline->start();
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &CaptureForm::tick);
-    timer->start(1000/30);
+    timer->start(1000/60);
     unpause();
 }
 
@@ -150,7 +143,7 @@ void CaptureForm::toggleSegmentation() {
 }
 
 QString CaptureForm::getFlagColor(bool flag) const {
-    if (flag)
+    if (!flag)
         return ui.startButton->palette().base().color().name();
     return ui.stopButton->palette().base().color().name();
 }

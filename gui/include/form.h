@@ -1,8 +1,6 @@
 #ifndef CAPTUREFORM_H
 #define CAPTUREFORM_H
 #include "ui_form.h"
-#include <QCamera>
-#include <QCameraImageCapture>
 #include <QImage>
 #include <vector>
 #include <memory>
@@ -11,6 +9,7 @@
 #include <unordered_map>
 #include <QTimer>
 #include "../../common/include/control_message.h"
+
 
 class CaptureForm : public QWidget
 {

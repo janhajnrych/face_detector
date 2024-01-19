@@ -15,6 +15,7 @@
 #include <chrono>
 #include "command.h"
 #include <variant>
+#include "profiler.h"
 
 
 class Workflow;
@@ -34,6 +35,7 @@ public:
     bool isRunning() const;
     friend class Dispatcher;
     enum class EventType { FaceSaved=0, FaceRemoved=1};
+    enum class ProfileType { ReadFps=0, CamFps=1};
     struct Event {
         EventType type;
         cv::Mat image;
@@ -42,10 +44,11 @@ public:
     using Listener = std::function<void(Event)>;
     void listen(EventType eventType, Listener listener);
     void loadDirToDb(std::filesystem::path dirPath);
+    void writeStats();
 private:
     std::unique_ptr<Workflow> workflow;
     std::unique_ptr<Dispatcher> dispatcher;
-    std::thread producerThread, consumerThread, cameraThread;
+    std::thread producerThread, consumerThread, cameraThread, eventThread;
     DataRail<std::tuple<cv::Mat, unsigned>> inputRail;
     DataRail<cv::Mat> outputBuffer;
     using TaskResult = std::tuple<cv::Mat, int>;
@@ -58,7 +61,7 @@ private:
     std::atomic<unsigned> flags;
     std::atomic<unsigned> boxSize;
     std::unordered_map<EventType, Listener> listeners;
-
+    std::unordered_map<ProfileType, std::unique_ptr<Profiler>> profilers;
 };
 
 

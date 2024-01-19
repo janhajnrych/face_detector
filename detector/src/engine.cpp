@@ -3,7 +3,9 @@
 #include "../include/detector.h"
 #include <functional>
 #include <opencv2/opencv.hpp>
-#include <map>
+#include <unordered_map>
+#include <fstream>
+#include "../../common/include/version.h"
 
 
 class Dispatcher {
@@ -78,7 +80,7 @@ public:
         };
     }
 
-    std::queue<Engine::Event> eventQueue;
+    DataRail<Engine::Event> eventQueue;
 
 private:
     static cv::Mat makeDetections(cv::Mat frame, unsigned boxSize, Workflow* workflow) {
@@ -94,7 +96,7 @@ private:
         event.data = name;
         event.image = face;
         event.type = Engine::EventType::FaceSaved;
-        eventQueue.push(event);
+        eventQueue.write(event);
         return frame;
     }
 
@@ -108,7 +110,7 @@ private:
         Engine::Event event;
         event.data = name;
         event.type = Engine::EventType::FaceRemoved;
-        eventQueue.push(event);
+        eventQueue.write(event);
         return frame;
     }
 
@@ -125,7 +127,10 @@ Engine::Engine():
     workflow(std::make_unique<Workflow>()),
     finished(true),
     readWaitTime(std::chrono::milliseconds(1000/60)),
-    dispatcher(std::make_unique<Dispatcher>()) {}
+    dispatcher(std::make_unique<Dispatcher>()) {
+    profilers[ProfileType::CamFps] = std::make_unique<Profiler>(0, 80, 80);
+    profilers[ProfileType::ReadFps] = std::make_unique<Profiler>(0, 80, 80);
+}
 
 
 void Engine::start() {
@@ -134,6 +139,8 @@ void Engine::start() {
         camera.start();
         while (camera.isRunning() && !finished) {
             camera.next();
+            if (BuildInfo::isDebug())
+                profilers.at(ProfileType::CamFps)->measure();
             if (finished)
                 camera.stop();
         }
@@ -161,18 +168,22 @@ void Engine::start() {
                 auto future = task.get_future();
                 task(frame);
                 auto [newFrame, errorCode] = future.get();
-                if (errorCode == 0) {
+                if (errorCode == 0)
                     outputBuffer.write(newFrame);
-                }
                 else
                     outputBuffer.write(frame);
             }
-            while (!dispatcher->eventQueue.empty()){
-                auto event = dispatcher->eventQueue.front();
-                dispatcher->eventQueue.pop();
-                if (listeners.find(event.type) != listeners.end())
-                    listeners.at(event.type)(event);
-            }
+        }
+    });
+    eventThread = std::thread([&](){
+        auto timeout = std::chrono::milliseconds(500);
+        while (!finished) {
+            auto result = dispatcher->eventQueue.readWithTimeout(timeout);
+            if (!result.has_value())
+                continue;
+            auto event = result.value();
+            if (listeners.find(event.type) != listeners.end())
+                listeners.at(event.type)(event);
         }
     });
 }
@@ -180,7 +191,10 @@ void Engine::start() {
 cv::Mat Engine::read() {
     if (!camera.isRunning())
         return camera.getLastFrame();
-    return outputBuffer.readWithTimeout(std::chrono::milliseconds(1000/camera.getFps())).value_or(camera.getLastFrame());
+    auto frame = outputBuffer.readWithTimeout(std::chrono::milliseconds(2*1000/camera.getFps())).value_or(camera.getLastFrame());
+    if (BuildInfo::isDebug())
+        profilers.at(ProfileType::ReadFps)->measure();
+    return frame;
 }
 
 void Engine::changePreset(const ControlMessage& message) {
@@ -221,6 +235,8 @@ Engine::~Engine() {
         producerThread.join();
     if (consumerThread.joinable())
         consumerThread.join();
+    if (eventThread.joinable())
+        eventThread.join();
 }
 
 void Engine::terminate() {
@@ -228,8 +244,22 @@ void Engine::terminate() {
     producerThread.join();
     consumerThread.join();
     cameraThread.join();
+    eventThread.join();
 }
 
 bool Engine::isRunning() const {
     return !finished;
+}
+
+void Engine::writeStats() {
+    if (BuildInfo::isDebug()) {
+        if (profilers.contains(ProfileType::CamFps)){
+            std::ofstream outFileCam("camFps.csv");
+            profilers.at(ProfileType::CamFps)->write(outFileCam);
+        }
+        if (profilers.contains(ProfileType::ReadFps)){
+            std::ofstream outFile("readFps.csv");
+            profilers.at(ProfileType::ReadFps)->write(outFile);
+        }
+    }
 }

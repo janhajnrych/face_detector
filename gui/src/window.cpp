@@ -3,6 +3,7 @@
 #include <QBoxLayout>
 #include "../include/form.h"
 #include "../include/pipeline.h"
+#include "../common/include/version.h"
 
 MainWindow::MainWindow()
 {
@@ -10,6 +11,8 @@ MainWindow::MainWindow()
     palette.setColor(QPalette::Window, QColor(61, 56, 70));
     setPalette(palette);
     setAutoFillBackground(true);
+    auto version = BuildInfo::getVersion();
+    setWindowTitle(QString("Face Detector - version %1").arg(QString::fromStdString(version)));
 }
 
 int MainWindow::runApp(int argc, char* argv[], std::unique_ptr<Pipeline> pipeline) {

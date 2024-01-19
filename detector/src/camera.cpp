@@ -21,7 +21,7 @@ void Camera::start() {
         int width = capture.get(cv::CAP_PROP_FRAME_WIDTH);
         int height = capture.get(cv::CAP_PROP_FRAME_HEIGHT);
         frame = cv::Mat(width, height, CV_8UC3, cv::Scalar(0, 0, 0));
-        readWaitTime = std::chrono::milliseconds(2*1000/fps);
+        readWaitTime = std::chrono::milliseconds(1000/fps);
     }
 }
 

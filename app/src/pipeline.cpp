@@ -18,6 +18,7 @@ ImagePipeline::ImagePipeline(std::filesystem::path dirPath): dirPath(dirPath) {
 
 ImagePipeline::~ImagePipeline() {
     engine->terminate();
+    engine->writeStats();
 }
 
 QImage ImagePipeline::read() {

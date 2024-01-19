@@ -11,7 +11,7 @@
 #include <bitset>
 #include "../../gui/include/image_list_model.h"
 #include "../../common/include/control_message.h"
-
+#include "../../common/include/histrogram.h"
 
 class Pipeline: public QObject
 {
