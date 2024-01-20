@@ -3,18 +3,15 @@
 #include <exception>
 #include <string>
 #include <opencv2/objdetect/objdetect.hpp>
-#include "component.h"
-#include "exception.h"
+#include "model.h"
 
 
-class FaceDetector: public Component
+class FaceDetector: public Model<cv::CascadeClassifier>
 {
 public:
-    using Exception = ComponentException<FaceDetector>;
-    void load(const std::string& cascadePath);
     void detect(cv::Mat cvImage, std::vector<cv::Rect>& detections) const;
+    FaceDetector(const std::string& path);
 protected:
-    cv::CascadeClassifier cascade;
     unsigned minSize = 64;
 };
 

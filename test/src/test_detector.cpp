@@ -9,8 +9,7 @@
 class FaceDetectorFixture : public testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
-        detector = std::make_unique<FaceDetector>();
-        detector->load(getModelPath().string());
+        detector = std::make_unique<FaceDetector>(getModelPath().string());
         imgDir = std::filesystem::path("data");
     }
 
@@ -28,14 +27,6 @@ protected:
     std::filesystem::path imgDir;
 };
 
-
-TEST_F(FaceDetectorFixture, FaceDetectorLoad) {
-    EXPECT_NO_THROW(detector->load(getModelPath().string()));
-}
-
-TEST_F(FaceDetectorFixture, FaceDetectorLoadException) {
-    EXPECT_THROW(detector->load("???"), FaceDetector::Exception);
-}
 
 TEST_P(FaceDetectorFixture, FaceDetectionWithFileReading) {
     std::string filename = GetParam();

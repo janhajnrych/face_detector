@@ -113,7 +113,7 @@ background-color: rgb(38, 162, 105);</string>
    <item row="1" column="0">
     <widget class="QTabWidget" name="tabMenu">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="detection_tab">
       <attribute name="title">
@@ -122,13 +122,13 @@ background-color: rgb(38, 162, 105);</string>
       <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
         <rect>
-         <x>9</x>
-         <y>10</y>
-         <width>571</width>
-         <height>201</height>
+         <x>10</x>
+         <y>11</y>
+         <width>531</width>
+         <height>311</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>

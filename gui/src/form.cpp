@@ -51,12 +51,7 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     ui.boxSizeSlider->setMinimum(50);
     ui.boxSizeSlider->setValue(100);
     ui.boxSizeSlider->setMaximum(200);
-    connect(ui.boxSizeSlider, &QSlider::valueChanged, this, [this](auto newValue){
-        ControlMessage message;
-        message.opFlags = controlFlags;
-        message.boxSize = newValue;
-        this->pipeline->changePreset(message);
-    });
+    connect(ui.boxSizeSlider, &QSlider::valueChanged, this, &CaptureForm::onBoxSizeChanged);
     connect(ui.addFaceButton, &QPushButton::clicked, this, &CaptureForm::saveFace);
     connect(this->pipeline.get(), &Pipeline::faceAdded, this->imageListModel, &ImageListModel::addImage);
     connect(this->pipeline.get(), &Pipeline::faceRemoved, this->imageListModel, &ImageListModel::removeImage);
@@ -80,6 +75,13 @@ void CaptureForm::saveFace() {
         message.filename = name.value().toStdString();
     }
     this->unpause();
+}
+
+void CaptureForm::onBoxSizeChanged(int value) {
+    ControlMessage message;
+    message.opFlags = controlFlags;
+    message.boxSize = value;
+    this->pipeline->changePreset(message);
 }
 
 void CaptureForm::removeFace() {

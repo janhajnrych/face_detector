@@ -29,6 +29,7 @@ private slots:
     void tick();
     void saveFace();
     void removeFace();
+    void onBoxSizeChanged(int value);
 private:
     Ui_MainForm ui;
     bool active = false;

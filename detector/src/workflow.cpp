@@ -20,10 +20,9 @@ namespace {
         static_assert(std::is_base_of<FaceDetector, T>::value, "wrong detector type");
         std::unique_ptr<T> detector;
         try {
-            detector = std::make_unique<T>();
-            detector->load(cascadePath);
+            detector = std::make_unique<T>(cascadePath);
         }
-        catch (FaceDetector::Exception exception) {
+        catch (FaceDetector::ModelException exception) {
             detector = nullptr;
             std::cerr << exception.what() << std::endl;
         }

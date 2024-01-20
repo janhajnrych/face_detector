@@ -31,9 +31,9 @@ cv::Mat Segmenter::calcMask(cv::Mat image) {
     blob = cv::dnn::blobFromImage(frame, 1.0 / 255.0, cv::Size(), mean, true, false);
     auto std = cv::Scalar(0.229, 0.224, 0.225);
     cv::divide(blob, std, blob);
-    net.setInput(blob);
+    model.setInput(blob);
     cv::Mat outBlob;
-    net.forward(outBlob);
+    model.forward(outBlob);
     return argmax(outBlob);
 }
 
@@ -77,17 +77,6 @@ cv::Mat Segmenter::colorize(cv::Mat image, cv::Mat mask, cv::Scalar color) {
     cv::Mat out;
     image.copyTo(out, mask);
     return image;
-}
-
-void Segmenter::load(const std::string& path){
-    cv::dnn::Net network;
-    try {
-        network = cv::dnn::readNetFromONNX(path);
-    }
-    catch (cv::Exception& e) {
-        throw Segmenter::Exception(std::string("Not loaded! ") + std::string(e.what()));
-    }
-    net = network;
 }
 
 

@@ -13,10 +13,9 @@
 #include "camera.h"
 #include "../../common/include/control_message.h"
 #include <chrono>
-#include "command.h"
 #include <variant>
 #include "profiler.h"
-
+#include <filesystem>
 
 class Workflow;
 class Dispatcher;
@@ -60,7 +59,7 @@ private:
     std::chrono::milliseconds readWaitTime;
     Camera camera;
     std::atomic<unsigned> opFlags, camFlags;
-    std::atomic<unsigned> boxSize;
+    std::atomic<unsigned> boxSize, searchThreshold;
     std::unordered_map<EventType, Listener> listeners;
     std::unordered_map<ProfileType, std::unique_ptr<Profiler>> profilers;
 };

@@ -9,8 +9,7 @@
 class FaceClassifierFixture : public testing::TestWithParam<std::tuple<std::string, std::string, float, float>> {
 protected:
     void SetUp() override {
-        classifier = std::make_unique<Classifier>();
-        classifier->load(getModelPath(classifierFilename).string());
+        classifier = std::make_unique<Classifier>(getModelPath("classifier.onnx").string());
         imgDir = std::filesystem::path("data");
     }
 
@@ -24,19 +23,10 @@ protected:
         return cv::imread(path.string(), cv::IMREAD_COLOR);
     }
 
-    std::string classifierFilename = "classifier.onnx";
     std::unique_ptr<Classifier> classifier;
     std::filesystem::path imgDir;
 };
 
-
-TEST_F(FaceClassifierFixture, FaceClassifierLoad) {
-    EXPECT_NO_THROW(classifier->load(getModelPath(classifierFilename).string()));
-}
-
-TEST_F(FaceClassifierFixture, FaceClassifierLoadException) {
-    EXPECT_THROW(classifier->load("???"), Classifier::Exception);
-}
 
 TEST_P(FaceClassifierFixture, FaceClassifierWithFileReading) {
     auto [path_a, path_b, expected_score, tolerance] = GetParam();

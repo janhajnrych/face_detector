@@ -18,7 +18,6 @@ namespace {
 
 }
 
-
 Classifier::Classifier(const std::string& modelPath) {
     load(modelPath);
 }
@@ -27,23 +26,21 @@ cv::Mat Classifier::getEmbedding(cv::Mat image) {
     cv::Mat blob;
     static const cv::Size size = cv::Size(96, 96);
     cv::dnn::blobFromImage(toGray(image), blob, 1.0, size, cv::Scalar(), true, false);
-    net.setInput(blob);
+    model.setInput(blob);
     std::vector<cv::Mat> outputs;
-    net.forward(outputs, net.getUnconnectedOutLayersNames());
+    model.forward(outputs, model.getUnconnectedOutLayersNames());
     if (outputs.size() != 1)
         throw "wrong array";
     return outputs[0];
 }
 
-void Classifier::load(const std::string& path){
-    cv::dnn::Net network;
-    try {
-        network = cv::dnn::readNetFromONNX(path);
-    }
-    catch (cv::Exception& e) {
-        throw Classifier::Exception("Not loaded!");
-    }
-    net = network;
-}
+// void Classifier::load(const std::string& path){
+//     try {
+//         net = cv::dnn::readNetFromONNX(path);
+//     }
+//     catch (cv::Exception& e) {
+//         throw Classifier::Exception("Not loaded!");
+//     }
+// }
 
 

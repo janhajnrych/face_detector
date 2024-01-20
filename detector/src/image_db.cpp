@@ -1,6 +1,7 @@
 #include <exception>
 #include "../include/image_db.h"
 #include <opencv2/opencv.hpp>
+#include <ranges>
 
 void ImageDb::addImage(const std::string& name, cv::Mat embedding) {
     Item item;

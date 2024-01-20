@@ -3,21 +3,20 @@
 #include <opencv2/core.hpp>
 #include <opencv2/dnn/dnn.hpp>
 #include <string>
-#include "component.h"
-#include "exception.h"
+#include "model.h"
 
 
-class Classifier: public Component
+class Classifier: public Model<cv::dnn::Net>
 {
 public:
     using Exception = ComponentException<Classifier>;
-    explicit Classifier() = default;
+    explicit Classifier() = delete;
+    explicit Classifier(const Classifier&) = delete;
     explicit Classifier(const std::string& modelPath);
     cv::Mat getEmbedding(cv::Mat image);
-    void load(const std::string& path);
 private:
-    cv::dnn::Net net;
-
+    //cv::dnn::Net net;
+    //void load(const std::string& path);
 };
 
 

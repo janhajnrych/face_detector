@@ -28,7 +28,7 @@ public:
     std::optional<Item> findById(unsigned id) const;
     void removeAt(unsigned index);
     bool removeByName(const std::string& name);
-    std::optional<Item> findSimilar(cv::Mat refEmbedding) const;
+    std::optional<Item> findSimilar(cv::Mat refEmbeddings) const;
     size_t size() const;
     void clear();
     Item operator[](unsigned index) const;
