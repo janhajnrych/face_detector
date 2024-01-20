@@ -11,6 +11,7 @@ class Classifier: public Component
 {
 public:
     using Exception = ComponentException<Classifier>;
+    explicit Classifier() = default;
     explicit Classifier(const std::string& modelPath);
     cv::Mat getEmbedding(cv::Mat image);
     void load(const std::string& path);

@@ -19,15 +19,6 @@ namespace {
 }
 
 
-// Classifier::Exception::Exception(const std::string& message): message("ClassifierException: " + message) {}
-
-// Classifier::Exception::~Exception() noexcept {}
-
-// const char* Classifier::Exception::what() const noexcept {
-//     return message.c_str();
-// }
-
-
 Classifier::Classifier(const std::string& modelPath) {
     load(modelPath);
 }
