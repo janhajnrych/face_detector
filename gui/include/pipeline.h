@@ -18,12 +18,14 @@ class Pipeline: public QObject
     Q_OBJECT
 public:
     virtual QImage read() =0;
-    virtual void changePreset(ControlMessage message) =0;
-    virtual void scheduleCommand(CmdMessage message) =0;
-    virtual void scheduleCommand(CameraMessage message) =0;
     virtual void loadImageDir() =0;
     virtual void start() =0;
     virtual bool isRunning() const =0;
+    virtual void setBoxSize(unsigned size) =0;
+    virtual void setOperation(ImageOperation operation, bool value) =0;
+    virtual void saveFace(const QString& name) =0;
+    virtual void removeFace(const QString& name) =0;
+    virtual void setCameraState(bool paused) =0;
 signals:
     void faceAdded(QImage, QString);
     void faceRemoved(QString);

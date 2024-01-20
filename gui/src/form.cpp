@@ -40,7 +40,7 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     connect(ui.locateCheckBox, &QCheckBox::toggled, this, &CaptureForm::toggleDetection);
     ui.label->setText("waiting");
     ui.activityCheckBox->setCheckState(active ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
-    ui.locateCheckBox->setCheckState(controlFlags[ImageOperation::Detection] ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
+    ui.locateCheckBox->setCheckState(Qt::CheckState::Unchecked);
     imageListModel = new ImageListModel(ui.listView);
     ui.listView->setModel(imageListModel);
     configureListView(ui.listView);
@@ -70,26 +70,18 @@ void CaptureForm::saveFace() {
     this->pause();
     auto name = showIndentificationDialog(this);
     if (name.has_value()){
-        CmdMessage message;
-        message.dbFlags.set(DbOperation::SaveFaceToDb, 1);
-        message.filename = name.value().toStdString();
+        pipeline->saveFace(name.value());
     }
     this->unpause();
 }
 
 void CaptureForm::onBoxSizeChanged(int value) {
-    ControlMessage message;
-    message.opFlags = controlFlags;
-    message.boxSize = value;
-    this->pipeline->changePreset(message);
+    pipeline->setBoxSize(value);
 }
 
 void CaptureForm::removeFace() {
     auto index = ui.listView->currentIndex();
-    CmdMessage message;
-    message.dbFlags.set(DbOperation::RemoveFaceFromDb, 1);
-    message.filename = imageListModel->getName(index).toStdString();
-    pipeline->scheduleCommand(message);
+    pipeline->removeFace(imageListModel->getName(index));
 }
 
 void CaptureForm::tick() {
@@ -100,15 +92,7 @@ void CaptureForm::tick() {
     ui.label->setPixmap(QPixmap::fromImage(convert(frame, size)));
 }
 
-void CaptureForm::sendMessage() {
-    ControlMessage message;
-    message.opFlags = controlFlags;
-    message.boxSize = ui.boxSizeSlider->value();
-    pipeline->changePreset(message);
-}
-
-void CaptureForm::updateActivity(bool checked)
-{
+void CaptureForm::updateActivity(bool checked) {
     ui.label->setText(checked ? "loading" : "waiting");
     active = checked;
 }
@@ -116,38 +100,30 @@ void CaptureForm::updateActivity(bool checked)
 void CaptureForm::pause() {
     paused = true;
     updateControlButtons();
-    CameraMessage message;
-    message.camFlags.set(CameraOperation::PauseCamera, 1);
-    pipeline->scheduleCommand(message);
+    pipeline->setCameraState(paused);
 }
 
 void CaptureForm::unpause() {
     paused = false;
     updateControlButtons();
-    CameraMessage message;
-    message.camFlags.set(CameraOperation::UnpauseCamera, 1);
-    pipeline->scheduleCommand(message);
+    pipeline->setCameraState(paused);
 }
 
 
 void CaptureForm::toggleClassification() {
-    auto op = ImageOperation::Recognition;
-    controlFlags = controlFlags.flip(op);
-    updateSwitchButton(ui.detectButton, "Classify", op);
-    sendMessage();
+    recognition = !recognition;
+    updateSwitchButton(ui.detectButton, "Classify", recognition);
+    pipeline->setOperation(ImageOperation::Recognition, recognition);
 }
 
 void CaptureForm::toggleDetection() {
-    auto op = ImageOperation::Detection;
-    controlFlags = controlFlags.flip(op);
-    sendMessage();
+    pipeline->setOperation(ImageOperation::Detection, ui.locateCheckBox->isChecked());
 }
 
 void CaptureForm::toggleSegmentation() {
-    auto op = ImageOperation::Segmentation;
-    controlFlags = controlFlags.flip(op);
-    updateSwitchButton(ui.segmentButton, "Segmentation", op);
-    sendMessage();
+    segmentation = !segmentation;
+    updateSwitchButton(ui.segmentButton, "Segmentation", segmentation);
+    pipeline->setOperation(ImageOperation::Segmentation, segmentation);
 }
 
 QString CaptureForm::getFlagColor(bool flag) const {
@@ -156,8 +132,7 @@ QString CaptureForm::getFlagColor(bool flag) const {
     return ui.stopButton->palette().base().color().name();
 }
 
-void CaptureForm::updateSwitchButton(QPushButton* button, const QString& name, ImageOperation op) {
-    auto flagValue = controlFlags[op];
+void CaptureForm::updateSwitchButton(QPushButton* button, const QString& name, bool flagValue) {
     auto color = getFlagColor(flagValue);
     QString qss = QString("background-color: %1").arg(color);
     button->setStyleSheet(qss);

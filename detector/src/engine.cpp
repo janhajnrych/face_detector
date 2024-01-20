@@ -210,6 +210,13 @@ void Engine::executeOnce(const CameraMessage& message) {
 
 }
 
+ControlMessage Engine::getPreset() const {
+    ControlMessage config;
+    config.boxSize = boxSize;
+    config.opFlags = ControlFlags(opFlags);
+    return config;
+}
+
 void Engine::listen(EventType eventType, Listener listener) {
     listeners[eventType] = listener;
 }

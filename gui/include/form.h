@@ -34,13 +34,13 @@ private:
     Ui_MainForm ui;
     bool active = false;
     bool paused = false;
-    ControlFlags controlFlags;
+    bool segmentation = false;
+    bool recognition = false;
     std::shared_ptr<Pipeline> pipeline;
     void updateControlButtons();
     ImageListModel* imageListModel;
-    void updateSwitchButton(QPushButton* button, const QString& name, ImageOperation op);
+    void updateSwitchButton(QPushButton* button, const QString& name, bool flagValue);
     QString getFlagColor(bool flag) const;
-    void sendMessage();
     QTimer* timer;
 };
 

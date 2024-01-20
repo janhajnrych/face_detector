@@ -25,19 +25,6 @@ QImage ImagePipeline::read() {
     return convertToQt(engine->read());
 }
 
-void ImagePipeline::changePreset(ControlMessage message) {
-    engine->changePreset(message);
-}
-
-
-void ImagePipeline::scheduleCommand(CmdMessage message) {
-    engine->executeOnce(message);
-}
-
-void ImagePipeline::scheduleCommand(CameraMessage message) {
-    engine->executeOnce(message);
-}
-
 void ImagePipeline::loadImageDir() {
     engine->loadDirToDb(dirPath);
 }
@@ -48,6 +35,38 @@ void ImagePipeline::start() {
 
 bool ImagePipeline::isRunning() const {
     return engine->isRunning();
+}
+
+void ImagePipeline::setBoxSize(unsigned size) {
+    auto preset = engine->getPreset();
+    preset.boxSize = size;
+    engine->changePreset(preset);
+}
+
+void ImagePipeline::setOperation(ImageOperation operation, bool value) {
+    auto preset = engine->getPreset();
+    preset.opFlags.set(operation, value);
+    engine->changePreset(preset);
+}
+
+void ImagePipeline::saveFace(const QString& name) {
+    CmdMessage message;
+    message.dbFlags.set(DbOperation::SaveFaceToDb, 1);
+    message.filename = name.toStdString();
+    engine->executeOnce(message);
+}
+
+void ImagePipeline::removeFace(const QString& name) {
+    CmdMessage message;
+    message.dbFlags.set(DbOperation::RemoveFaceFromDb, 1);
+    message.filename = name.toStdString();
+    engine->executeOnce(message);
+}
+
+void ImagePipeline::setCameraState(bool paused) {
+    CameraMessage message;
+    message.camFlags.set(CameraOperation::PauseCamera, paused);
+    engine->executeOnce(message);
 }
 
 

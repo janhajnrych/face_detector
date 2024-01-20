@@ -16,6 +16,7 @@ using CameraFlags = std::bitset<2>;
 struct ControlMessage {
     ControlFlags opFlags = {0b000};
     unsigned boxSize = 100;
+
 };
 
 struct CmdMessage {

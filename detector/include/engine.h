@@ -28,6 +28,7 @@ public:
     void changePreset(const ControlMessage& config);
     void executeOnce(const CmdMessage& config);
     void executeOnce(const CameraMessage& config);
+    ControlMessage getPreset() const;
     cv::Mat read();
     void start();
     void terminate();
@@ -59,7 +60,7 @@ private:
     std::chrono::milliseconds readWaitTime;
     Camera camera;
     std::atomic<unsigned> opFlags, camFlags;
-    std::atomic<unsigned> boxSize, searchThreshold;
+    std::atomic<unsigned> boxSize = 100;
     std::unordered_map<EventType, Listener> listeners;
     std::unordered_map<ProfileType, std::unique_ptr<Profiler>> profilers;
 };
