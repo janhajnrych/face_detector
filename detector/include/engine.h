@@ -55,7 +55,6 @@ private:
     using TaskResult = std::tuple<cv::Mat, int>;
     using Task = std::packaged_task<TaskResult(cv::Mat)>;
     DataRail<Task> taskQueue;
-    //cv::Mat processFrame(cv::Mat frame, Config config);
     std::atomic_bool finished;
     std::chrono::milliseconds readWaitTime;
     Camera camera;

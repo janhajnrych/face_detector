@@ -17,8 +17,9 @@ private:
 public:
 
     Dispatcher() {
-        imageTaskFactories[ImageOperation::Detection] = [](ControlMessage, Workflow* workflow) {
-            return std::bind(&Workflow::drawFaceRects, workflow, std::placeholders::_1);
+        imageTaskFactories[ImageOperation::Detection] = [this](ControlMessage message, Workflow* workflow) {
+            bool stabilized = message.opFlags[ImageOperation::Stablization];
+            return std::bind(&Workflow::drawFaceRects, workflow, std::placeholders::_1, stabilized);
         };
         imageTaskFactories[ImageOperation::Recognition] = [](ControlMessage message, Workflow* workflow) {
             float offset = message.opFlags[ImageOperation::Detection] ? -0.5f: 0.f;

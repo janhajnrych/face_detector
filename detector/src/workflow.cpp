@@ -10,7 +10,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 #include "../include/image_db.h"
-#include "../include/background.h"
+
 #include <iostream>
 
 namespace {
@@ -41,6 +41,7 @@ Workflow::Workflow():
     faceDetector(createDetector<FaceDetector>("../data/haarcascade_frontalface_default.xml")),
     classifier(std::make_unique<Classifier>("../data/classifier.onnx")),
     segmenter(std::make_unique<Segmenter>("../data/segmentation.onnx")),
+    stabilizer(std::make_unique<Stabilizer>()),
     imageDb(std::make_unique<ImageDb>())
 {
 }
@@ -59,7 +60,7 @@ void Workflow::detectFaces(cv::Mat frame, float relativeBoxSize) {
 }
 
 cv::Mat Workflow::drawText(cv::Mat image, cv::Point pos, const std::string& text) const {
-    cv::putText(image, text, pos, cv::FONT_HERSHEY_DUPLEX, 1.0, color, 2);
+    cv::putText(image, text, pos, cv::FONT_HERSHEY_DUPLEX, 1.0, defaultColor, 2);
     return image;
 }
 
@@ -73,17 +74,34 @@ cv::Mat Workflow::getSlice(cv::Mat image, cv::Rect rect) {
     return image(clipRect(image.size(), rect));
 }
 
-cv::Mat Workflow::drawFaceRects(cv::Mat image) {
-    static double alpha = 0.33;
-    static double minAlpha = 0.01;
+cv::Mat Workflow::drawFaceRects(cv::Mat image, bool stabilized) {
+    static constexpr double alpha = 0.33;
     cv::Mat overlay;
     image.copyTo(overlay);
-    for(auto& face: detections){
-        cv::Rect rect(face);
-        cv::rectangle(image, rect.tl(), rect.br(), color, 4);
-        if (alpha < minAlpha)
-            continue;
-        cv::rectangle(overlay, rect.tl(), rect.br(), color, -1);
+    auto largest_iter = detections.end();
+    largest_iter = std::max_element(detections.begin(), detections.end(), [](auto a, auto b){
+        return a.area() < b.area();
+    });
+    if (!stabilized) {
+        stabilizer->setHint(*largest_iter);
+        largest_iter = detections.end();
+    }
+    else if (largest_iter == detections.end()){
+        auto stabilizedRect = stabilizer->stabilize();
+        cv::rectangle(image, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, 4);
+        cv::rectangle(overlay, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, -1);
+    }
+    for(auto it = detections.begin(); it != detections.end(); ++it) {
+        auto rect = *it;
+        if (it == largest_iter) {
+            auto stabilizedRect = stabilizer->stabilize(rect);
+            cv::rectangle(image, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, 4);
+            cv::rectangle(overlay, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, -1);
+        }
+        else {
+            cv::rectangle(image, rect.tl(), rect.br(), defaultColor, 4);
+            cv::rectangle(overlay, rect.tl(), rect.br(), defaultColor, -1);
+        }
         cv::addWeighted(overlay, alpha, image, 1 - alpha, 0, image);
     }
     return image;

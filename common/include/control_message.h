@@ -5,16 +5,16 @@
 #include <string>
 
 
-enum ImageOperation { Detection=0, Recognition=1, Segmentation=2};
+enum ImageOperation { Detection=0, Recognition=1, Segmentation=2, Stablization=3};
 enum CameraOperation { PauseCamera=0, UnpauseCamera=1};
 enum DbOperation { SaveFaceToDb=0, RemoveFaceFromDb=1};
 
-using ControlFlags = std::bitset<3>;
+using ControlFlags = std::bitset<4>;
 using DbFlags = std::bitset<2>;
 using CameraFlags = std::bitset<2>;
 
 struct ControlMessage {
-    ControlFlags opFlags = {0b000};
+    ControlFlags opFlags = {0b0000};
     unsigned boxSize = 100;
 
 };

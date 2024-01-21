@@ -38,9 +38,11 @@ CaptureForm::CaptureForm(std::unique_ptr<Pipeline> pipeline, QWidget *parent): Q
     ui.setupUi(this);
     connect(ui.activityCheckBox, &QCheckBox::toggled, this, &CaptureForm::updateActivity);
     connect(ui.locateCheckBox, &QCheckBox::toggled, this, &CaptureForm::toggleDetection);
+    connect(ui.stabilizerCheckbox, &QCheckBox::toggled, this, &CaptureForm::toggleStabilization);
     ui.label->setText("waiting");
     ui.activityCheckBox->setCheckState(active ? Qt::CheckState::Checked : Qt::CheckState::Unchecked);
     ui.locateCheckBox->setCheckState(Qt::CheckState::Unchecked);
+    ui.stabilizerCheckbox->setCheckState(Qt::CheckState::Unchecked);
     imageListModel = new ImageListModel(ui.listView);
     ui.listView->setModel(imageListModel);
     configureListView(ui.listView);
@@ -118,6 +120,10 @@ void CaptureForm::toggleClassification() {
 
 void CaptureForm::toggleDetection() {
     pipeline->setOperation(ImageOperation::Detection, ui.locateCheckBox->isChecked());
+}
+
+void CaptureForm::toggleStabilization() {
+    pipeline->setOperation(ImageOperation::Stablization, ui.stabilizerCheckbox->isChecked());
 }
 
 void CaptureForm::toggleSegmentation() {

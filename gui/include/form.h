@@ -30,6 +30,7 @@ private slots:
     void saveFace();
     void removeFace();
     void onBoxSizeChanged(int value);
+    void toggleStabilization();
 private:
     Ui_MainForm ui;
     bool active = false;

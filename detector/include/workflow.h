@@ -13,11 +13,14 @@
 #include "segment.h"
 #include "component.h"
 #include "exception.h"
+#include "../include/stabilizer.h"
 
 class FaceDetector;
 class ImageDb;
 class Classifier;
 class Segmenter;
+class Stabilizer;
+
 
 class Workflow: Component
 {
@@ -25,7 +28,7 @@ public:
     using Exception = ComponentException<Workflow>;
     explicit Workflow();
     void detectFaces(cv::Mat frame, float relativeBoxSize = 1.0);
-    cv::Mat drawFaceRects(cv::Mat image);
+    cv::Mat drawFaceRects(cv::Mat image, bool stabilized);
     static cv::Mat getSlice(cv::Mat image, cv::Rect rect);
     const std::vector<cv::Rect>& getAllFaces() const;
     std::vector<cv::Rect> getLargerFaces(unsigned minArea) const;
@@ -44,8 +47,10 @@ private:
     std::unique_ptr<Classifier> classifier;
     std::unique_ptr<Segmenter> segmenter;
     std::unique_ptr<ImageDb> imageDb;
+    std::unique_ptr<Stabilizer> stabilizer;
     std::vector<cv::Rect> detections;
-    cv::Scalar color = cv::Scalar(0, 0, 255);
+    cv::Scalar defaultColor = cv::Scalar(0, 0, 255);
+    cv::Scalar stabilizedColor = cv::Scalar(0, 255, 0);
     static cv::Rect getLargestRect(const std::vector<cv::Rect>& faces);
     std::string getFilename(const std::string& name) const;
     static cv::Rect clipRect(cv::Size size, cv::Rect rect);
