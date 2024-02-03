@@ -159,14 +159,10 @@ std::vector<cv::Rect> Workflow::getLargerFaces(unsigned minArea, size_t maxNumbe
 }
 
 
-cv::Mat Workflow::saveFace(cv::Mat image, const std::string& name) {
-    if (detections.empty())
-        return image;
-    auto rect = getLargestRect(detections);
-    auto face = getSlice(image, rect);
+bool Workflow::saveFace(cv::Mat face, const std::string& name) {
     imageDb->addImage(name, classifier->getEmbedding(face));
     cv::imwrite(getFilename(name), face);
-    return face;
+    return true;
 }
 
 cv::Mat Workflow::loadFace(std::filesystem::path path, const std::string& name) {
@@ -209,4 +205,9 @@ bool Workflow::removeFace(const std::string &name) {
     if (result)
         std::filesystem::remove(getFilename(name));
     return result;
+}
+
+std::optional<cv::Mat> Workflow::getLargestFace(cv::Mat frame) const {
+    auto rect = getLargestRect(detections);
+    return getSlice(frame, rect);
 }

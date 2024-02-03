@@ -8,125 +8,79 @@
 #include "../../common/include/version.h"
 
 
-class Dispatcher {
-private:
-    using TaskFunction = std::function<Engine::TaskResult(cv::Mat)>;
-    using ImageFunction = std::function<cv::Mat(cv::Mat)>;
-    using ImageTaskFactory = std::function<ImageFunction(ControlMessage config, Workflow* workflow)>;
-    using DbTaskFactory = std::function<ImageFunction(CmdMessage config, Workflow* workflow)>;
+class Context {
 public:
 
-    Dispatcher() {
-        imageTaskFactories[ImageOperation::Detection] = [this](ControlMessage message, Workflow* workflow) {
-            bool stabilized = message.opFlags[ImageOperation::Stablization];
-            return std::bind(&Workflow::drawFaceRects, workflow, std::placeholders::_1, stabilized);
-        };
-        imageTaskFactories[ImageOperation::Recognition] = [](ControlMessage message, Workflow* workflow) {
-            float offset = message.opFlags[ImageOperation::Detection] ? -0.5f: 0.f;
-            return std::bind(&Workflow::drawFaceNames, workflow, std::placeholders::_1, offset * message.boxSize);
-        };
-        imageTaskFactories[ImageOperation::Segmentation] = [](ControlMessage, Workflow* workflow){
-            return std::bind(&Workflow::segment, workflow, std::placeholders::_1);
-        };
-        imageOpOrder = {ImageOperation::Detection, ImageOperation::Segmentation, ImageOperation::Recognition};
-        imageOpOrder.shrink_to_fit();
-        dbTaskFactories[DbOperation::SaveFaceToDb] = [this](CmdMessage config, Workflow* workflow) {
-            return std::bind(&Dispatcher::makeFaceWrite, this, std::placeholders::_1, workflow, config);
-        };
-        dbTaskFactories[DbOperation::RemoveFaceFromDb] = [this](CmdMessage config, Workflow* workflow) {
-            return std::bind(&Dispatcher::makeFaceRemove, this, std::placeholders::_1, workflow, config);
-        };
-    }
-
-    void createImageTasks(ControlMessage config, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
-        if (config.opFlags.any()){
-            auto func = std::bind(&Dispatcher::makeDetections, std::placeholders::_1, config.boxSize, workflow);
-            Engine::Task&& task = Engine::Task(withErrorCode(func));
-            taskQueue.writeMove(std::move(task));
+    cv::Mat execute(const cv::Mat& frame, Workflow& workflow) {
+        auto flags = ControlFlags(opFlags);
+        if (flags.any())
+            workflow.detectFaces(frame, static_cast<float>(boxSize) * 0.01f);
+        cv::Mat result = frame;
+        if (flags[ImageOperation::Detection])
+            result = workflow.drawFaceRects(result, flags[ImageOperation::Stablization]);
+        if (flags[ImageOperation::Recognition]){
+            auto offset = flags[ImageOperation::Detection] ? 1.0 : 0.0;
+            result = workflow.drawFaceNames(result, offset);
         }
-        for (auto operation: imageOpOrder) {
-            if (!config.opFlags[operation])
-                continue;
-            auto factory = imageTaskFactories[operation];
-            auto taskFunc = factory(config, workflow);
-            Engine::Task&& task = Engine::Task(withErrorCode(taskFunc));
-            taskQueue.writeMove(std::move(task));
-        }
+        if (flags[ImageOperation::Segmentation])
+            result = workflow.segment(result);
+        return result;
     }
 
-    void createDbTasks(CmdMessage message, Workflow* workflow, DataRail<Engine::Task>& taskQueue) {
-        for (auto [operation, factory]: dbTaskFactories) {
-            if (!message.dbFlags[operation])
-                continue;
-            auto taskFunc = factory(message, workflow);
-            Engine::Task&& task = Engine::Task(withErrorCode(taskFunc));
-            taskQueue.writeMove(std::move(task));
-        }
+    std::atomic<unsigned> opFlags;
+    std::atomic<unsigned> boxSize = 100;
+    std::queue<Engine::Event> eventQueue;
+};
+
+class Dispatcher {
+public:
+    static void createDbTask(const CmdMessage& message, std::queue<Engine::Task>& taskQueue){
+        taskQueue.push(Engine::Task(getDbFunc(message)));
     }
 
-    static TaskFunction withErrorCode(const std::function<cv::Mat(cv::Mat)>& function) { // decorator
-        return [function](cv::Mat frame) {
-            auto output = frame;
-            try {
-                output = function(frame);
-            }
-            catch (Workflow::Exception&) {
-                return std::make_tuple(output, 1);
-            }
-            catch (cv::Exception& e) {
-                return std::make_tuple(output, 2);
-            }
-            return std::make_tuple(output, 0);
+    using TaskFunction = std::function<Engine::TaskResult(Workflow&, Context&, cv::Mat&)>;
+
+    static TaskFunction getDbFunc(const CmdMessage& message){
+        if (message.dbFlags[DbOperation::SaveFaceToDb] && message.filename.has_value()){
+            return [message](Workflow& workflow, Context& context, cv::Mat& frame){
+                auto face = workflow.getLargestFace(frame);
+                if (!face.has_value())
+                    return false;
+                auto result = workflow.saveFace(face.value(), message.filename.value());
+                if (!result)
+                    return result;
+                Engine::SaveEventData data;
+                face.value().copyTo(data.image);
+                data.filename = message.filename.value();
+                context.eventQueue.push(Engine::Event(Engine::EventType::FaceSaved, data));
+                return result;
+            };
+        }
+        else if (message.dbFlags[DbOperation::RemoveFaceFromDb] && message.filename.has_value()){
+            return [message](Workflow& workflow, Context& context, cv::Mat&){
+                auto result = workflow.removeFace(message.filename.value());
+                if (!result)
+                    return result;
+                Engine::RemoveEventData data;
+                data.filename = message.filename.value();
+                context.eventQueue.push(Engine::Event(Engine::EventType::FaceRemoved, data));
+                return result;
+            };
+        }
+        return [](Workflow&, Context&, cv::Mat&){
+            return true;
         };
     }
-
-    DataRail<Engine::Event> eventQueue;
-
-private:
-    static cv::Mat makeDetections(cv::Mat frame, unsigned boxSize, Workflow* workflow) {
-        float relativeBoxSize = static_cast<float>(boxSize) * 0.01f;
-        workflow->detectFaces(frame, relativeBoxSize);
-        return frame;
-    }
-
-    cv::Mat makeFaceWrite(cv::Mat frame, Workflow* workflow, CmdMessage config) {
-        auto name = config.filename.value_or("face.png");
-        auto face = workflow->saveFace(frame, name);
-        Engine::Event event;
-        event.data = name;
-        event.image = face;
-        event.type = Engine::EventType::FaceSaved;
-        eventQueue.write(event);
-        return frame;
-    }
-
-    cv::Mat makeFaceRemove(cv::Mat frame, Workflow* workflow, CmdMessage config) {
-        if (!config.filename.has_value())
-            return frame;
-        auto name = config.filename.value();
-        auto success = workflow->removeFace(name);
-        if (!success)
-            return frame;
-        Engine::Event event;
-        event.data = name;
-        event.type = Engine::EventType::FaceRemoved;
-        eventQueue.write(event);
-        return frame;
-    }
-
-    std::unordered_map<ImageOperation, ImageTaskFactory> imageTaskFactories;
-    std::unordered_map<DbOperation, DbTaskFactory> dbTaskFactories;
-    std::vector<ImageOperation> imageOpOrder;
 };
 
 
 Engine::Engine():
     workflow(std::make_unique<Workflow>()),
     finished(true),
-    readWaitTime(std::chrono::milliseconds(1000/60)),
-    dispatcher(std::make_unique<Dispatcher>()) {
+    readWaitTime(std::chrono::milliseconds(1000/60)) {
     profilers[ProfileType::CamFps] = std::make_unique<Profiler>(0, 80, 80);
     profilers[ProfileType::ReadFps] = std::make_unique<Profiler>(0, 80, 80);
+    context = std::make_unique<Context>();
 }
 
 
@@ -147,42 +101,28 @@ void Engine::start() {
             auto frame = camera.read();
             if (frame.empty())
                 continue;
-            ControlMessage config;
-            config.boxSize = boxSize;
-            config.opFlags = ControlFlags(opFlags);
-            unsigned nTasksStart = taskQueue.size();
-            this->dispatcher->createImageTasks(config, workflow.get(), taskQueue);
-            inputRail.write(std::make_tuple(frame, taskQueue.size() - nTasksStart));
+            inputRail.write(frame);
         }
     });
     consumerThread = std::thread([&](){
         while (!finished) {
-            auto [frame, nTasks] = inputRail.readMove();
-            for (unsigned i=0; i < nTasks; i++) {
-                if (taskQueue.size() == 0)
-                    break;
-                auto task = taskQueue.readMove();
-                auto future = task.get_future();
-                task(frame);
-                auto [newFrame, errorCode] = future.get();
-                if (errorCode == 0)
-                    outputBuffer.write(newFrame);
-                else
-                    outputBuffer.write(frame);
-            }
+            auto frame = inputRail.readMove();
+            execCommands(frame);
+            frame = context->execute(frame, *workflow);
+            outputBuffer.write(frame);
         }
     });
-    eventThread = std::thread([&](){
-        auto timeout = std::chrono::milliseconds(500);
-        while (!finished) {
-            auto result = dispatcher->eventQueue.readWithTimeout(timeout);
-            if (!result.has_value())
-                continue;
-            auto event = result.value();
-            if (listeners.find(event.type) != listeners.end())
-                listeners.at(event.type)(event);
-        }
-    });
+}
+
+void Engine::execCommands(cv::Mat frame) {
+    std::lock_guard<std::mutex> lock(mutex);
+    while (!taskQueue.empty()){
+        auto task = std::move(taskQueue.front());
+        task(*workflow, *context, frame);
+        taskQueue.pop();
+        auto result = task.get_future();
+        auto errorCode = result.get();
+    }
 }
 
 cv::Mat Engine::read() {
@@ -191,30 +131,37 @@ cv::Mat Engine::read() {
     auto frame = outputBuffer.readWithTimeout(std::chrono::milliseconds(2*1000/camera.getFps())).value_or(camera.getLastFrame());
     if (BuildInfo::isDebug())
         profilers.at(ProfileType::ReadFps)->measure();
+    while (!context->eventQueue.empty()){
+        Event event;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            event = context->eventQueue.front();
+            context->eventQueue.pop();
+        }
+        if (listeners.find(event.type) != listeners.end())
+            listeners.at(event.type)(Event(event));
+    }
     return frame;
 }
 
 void Engine::changePreset(const ControlMessage& message) {
-    opFlags = static_cast<unsigned>(message.opFlags.to_ulong());
-    boxSize = message.boxSize;
+    context->opFlags = static_cast<unsigned>(message.opFlags.to_ulong());
+    context->boxSize = message.boxSize;
 }
 
 void Engine::executeOnce(const CmdMessage& message) {
-    dispatcher->createDbTasks(message, workflow.get(), taskQueue);
+    std::lock_guard<std::mutex> lock(mutex);
+    Dispatcher::createDbTask(message, taskQueue);
 }
 
 void Engine::executeOnce(const CameraMessage& message) {
-    if (!camera.isPaused() && message.camFlags[CameraOperation::PauseCamera])
-        camera.setPause(true);
-    else if (camera.isPaused() && message.camFlags[CameraOperation::UnpauseCamera])
-        camera.setPause(false);
-
+    camera.setPause(message.paused);
 }
 
 ControlMessage Engine::getPreset() const {
     ControlMessage config;
-    config.boxSize = boxSize;
-    config.opFlags = ControlFlags(opFlags);
+    config.boxSize = context->boxSize;
+    config.opFlags = ControlFlags(context->opFlags);
     return config;
 }
 
@@ -231,11 +178,10 @@ void Engine::loadDirToDb(std::filesystem::path dirPath) {
         auto face = workflow->loadFace(path, name);
         if (!listeners.contains(Engine::EventType::FaceSaved))
             continue;
-        Engine::Event event;
-        event.data = name;
-        event.image = face;
-        event.type = Engine::EventType::FaceSaved;
-        listeners[event.type](event);
+        Engine::SaveEventData eventData;
+        eventData.filename = name;
+        eventData.image = face;
+        listeners[Engine::EventType::FaceSaved](Event(Engine::EventType::FaceSaved, eventData));
     }
 }
 
@@ -247,8 +193,6 @@ Engine::~Engine() {
         producerThread.join();
     if (consumerThread.joinable())
         consumerThread.join();
-    if (eventThread.joinable())
-        eventThread.join();
 }
 
 void Engine::terminate() {
@@ -256,7 +200,6 @@ void Engine::terminate() {
     producerThread.join();
     consumerThread.join();
     cameraThread.join();
-    eventThread.join();
 }
 
 bool Engine::isRunning() const {

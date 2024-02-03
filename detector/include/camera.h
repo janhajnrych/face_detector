@@ -23,7 +23,8 @@ public:
     void setPause(bool newValue);
     bool isPaused() const;
 private:
-    cv::Mat lastFrame, tempFrame;
+    cv::Mat tempFrame;
+    std::optional<cv::Mat> backupFrame;
     DataRail<cv::Mat> frameQueue;
     std::atomic_bool running = false;
     std::atomic_bool paused = false;

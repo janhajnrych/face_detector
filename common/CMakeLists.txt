@@ -8,7 +8,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(VERSION "0.0.1")
+set(VERSION "0.0.2")
 set(IS_DEBUG 0)
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(IS_DEBUG 1)

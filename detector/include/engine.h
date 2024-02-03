@@ -16,10 +16,11 @@
 #include <variant>
 #include "profiler.h"
 #include <filesystem>
+#include <variant>
+
 
 class Workflow;
-class Dispatcher;
-
+class Context;
 
 class Engine
 {
@@ -37,31 +38,41 @@ public:
     friend class Dispatcher;
     enum class EventType { FaceSaved=0, FaceRemoved=1};
     enum class ProfileType { ReadFps=0, CamFps=1};
+    struct SaveEventData {
+        cv::Mat image;
+        std::string filename;
+    };
+    struct RemoveEventData {
+        std::string filename;
+    };
     struct Event {
         EventType type;
-        cv::Mat image;
-        std::string data;
+        using DataType = std::variant<SaveEventData, RemoveEventData>;
+        DataType data;
+        Event() = default;
+        Event(EventType type, DataType data): type(type), data(data) {}
     };
+
     using Listener = std::function<void(Event)>;
     void listen(EventType eventType, Listener listener);
     void loadDirToDb(std::filesystem::path dirPath);
     void writeStats();
 private:
+    std::unique_ptr<Context> context;
     std::unique_ptr<Workflow> workflow;
-    std::unique_ptr<Dispatcher> dispatcher;
-    std::thread producerThread, consumerThread, cameraThread, eventThread;
-    DataRail<std::tuple<cv::Mat, unsigned>> inputRail;
+    std::thread producerThread, consumerThread, cameraThread;
+    DataRail<cv::Mat> inputRail;
     DataRail<cv::Mat> outputBuffer;
-    using TaskResult = std::tuple<cv::Mat, int>;
-    using Task = std::packaged_task<TaskResult(cv::Mat)>;
-    DataRail<Task> taskQueue;
+    using TaskResult = bool;
+    using Task = std::packaged_task<TaskResult(Workflow&, Context&, cv::Mat&)>;
+    std::queue<Task> taskQueue;
     std::atomic_bool finished;
     std::chrono::milliseconds readWaitTime;
     Camera camera;
-    std::atomic<unsigned> opFlags, camFlags;
-    std::atomic<unsigned> boxSize = 100;
     std::unordered_map<EventType, Listener> listeners;
     std::unordered_map<ProfileType, std::unique_ptr<Profiler>> profilers;
+    mutable std::mutex mutex;
+    void execCommands(cv::Mat frame);
 };
 
 

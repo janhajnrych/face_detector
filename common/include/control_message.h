@@ -25,7 +25,7 @@ struct CmdMessage {
 };
 
 struct CameraMessage {
-    CameraFlags camFlags = {0b00};
+    bool paused;
 };
 
 

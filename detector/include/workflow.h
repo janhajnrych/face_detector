@@ -35,13 +35,13 @@ public:
     std::vector<cv::Rect> getLargerFaces(unsigned minArea, size_t maxNumber) const;
     cv::Mat drawText(cv::Mat image, cv::Point pos, const std::string& text) const;
     cv::Mat drawFaceNames(cv::Mat image, float offset = 0.f);
-    cv::Mat saveFace(cv::Mat image, const std::string& name);
+    bool saveFace(cv::Mat image, const std::string& name);
     cv::Mat loadFace(std::filesystem::path path, const std::string& name);
     cv::Mat segment(cv::Mat image);
     bool removeFace(const std::string& name);
     const std::string defaultSaveExt = ".png";
     const std::unordered_set<std::string> allowedExtensions = {".png",  ".jpg"};
-    void loadDirToDb(std::filesystem::path dirpath);
+    std::optional<cv::Mat> getLargestFace(cv::Mat frame) const;
 private:
     std::unique_ptr<FaceDetector> faceDetector;
     std::unique_ptr<Classifier> classifier;

@@ -9,10 +9,12 @@
 ImagePipeline::ImagePipeline(std::filesystem::path dirPath): dirPath(dirPath) {
     engine = std::make_unique<Engine>();
     engine->listen(Engine::EventType::FaceSaved, [this](auto event){
-        emit faceAdded(convertToQt(event.image), QString::fromStdString(event.data));
+        Engine::SaveEventData data = std::get<Engine::SaveEventData>(event.data);
+        emit faceAdded(convertToQt(data.image), QString::fromStdString(data.filename));
     });
     engine->listen(Engine::EventType::FaceRemoved, [this](auto event){
-        emit faceRemoved(QString::fromStdString(event.data));
+        Engine::RemoveEventData data = std::get<Engine::RemoveEventData>(event.data);
+        emit faceRemoved(QString::fromStdString(data.filename));
     });
 }
 
@@ -65,7 +67,7 @@ void ImagePipeline::removeFace(const QString& name) {
 
 void ImagePipeline::setCameraState(bool paused) {
     CameraMessage message;
-    message.camFlags.set(CameraOperation::PauseCamera, paused);
+    message.paused = paused;
     engine->executeOnce(message);
 }
 
