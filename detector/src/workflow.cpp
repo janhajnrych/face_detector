@@ -44,6 +44,14 @@ Workflow::Workflow():
     stabilizer(std::make_unique<Stabilizer>()),
     imageDb(std::make_unique<ImageDb>())
 {
+    resetNameScores();
+}
+
+
+void Workflow::resetNameScores() {
+    nameScores.scores = Eigen::VectorXf::Constant(imageDb->size(), 0.0);
+    nameScores.indices = imageDb->getIndices();
+    nameScores.scoreBuffer = Eigen::VectorXf::Constant(imageDb->size(), 0.0);
 }
 
 void Workflow::detectFaces(cv::Mat frame, float relativeBoxSize) {
@@ -107,13 +115,31 @@ cv::Mat Workflow::drawFaceRects(cv::Mat image, bool stabilized) {
     return image;
 }
 
+static inline size_t argmax(Eigen::VectorXf vector){
+    float maxElem = 0.0;
+    size_t maxIndex = 0;
+    for (size_t i=0; i<vector.rows(); i++){
+        if (vector[i] > maxElem){
+            maxIndex = i;
+            maxElem = vector[i];
+        }
+    }
+    return maxIndex;
+}
+
 cv::Mat Workflow::drawFaceNames(cv::Mat image, float offset) {
+    if (nameScores.indices.rows() == 0)
+        return image;
+    static float updateFactor = 0.25;
+    auto embedding = classifier->getEmbedding(image);
     for (auto face: getLargerFaces(128, 64)){
-        auto embedding = classifier->getEmbedding(getSlice(image, face));
-        auto searchResult = imageDb->findSimilar(embedding);
+        imageDb->getScores(nameScores.scoreBuffer, embedding, 2.0);
+        nameScores.scores = nameScores.scores * (1.f - updateFactor) + updateFactor * nameScores.scoreBuffer;
+        auto index = nameScores.indices[argmax(nameScores.scores)];
+        auto searchResult = imageDb->findById(index);
         if (!searchResult.has_value())
             continue;
-        auto item = searchResult.value();
+        const auto& item = searchResult.value();
         auto x = face.tl().x;
         auto y = 0.5*(face.tl().y + face.br().y);
         auto pos = cv::Point(x, y + face.height * offset);
@@ -162,12 +188,14 @@ std::vector<cv::Rect> Workflow::getLargerFaces(unsigned minArea, size_t maxNumbe
 bool Workflow::saveFace(cv::Mat face, const std::string& name) {
     imageDb->addImage(name, classifier->getEmbedding(face));
     cv::imwrite(getFilename(name), face);
+    resetNameScores();
     return true;
 }
 
 cv::Mat Workflow::loadFace(std::filesystem::path path, const std::string& name) {
     auto face = cv::imread(path.string());
     imageDb->addImage(name, classifier->getEmbedding(face));
+    resetNameScores();
     return face;
 }
 
@@ -204,6 +232,7 @@ bool Workflow::removeFace(const std::string &name) {
     auto result = imageDb->removeByName(name);
     if (result)
         std::filesystem::remove(getFilename(name));
+    resetNameScores();
     return result;
 }
 

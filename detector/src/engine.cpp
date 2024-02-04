@@ -19,7 +19,7 @@ public:
         if (flags[ImageOperation::Detection])
             result = workflow.drawFaceRects(result, flags[ImageOperation::Stablization]);
         if (flags[ImageOperation::Recognition]){
-            auto offset = flags[ImageOperation::Detection] ? 1.0 : 0.0;
+            auto offset = flags[ImageOperation::Detection] ? -0.5 : 0.0;
             result = workflow.drawFaceNames(result, offset);
         }
         if (flags[ImageOperation::Segmentation])
@@ -36,6 +36,15 @@ class Dispatcher {
 public:
     static void createDbTask(const CmdMessage& message, std::queue<Engine::Task>& taskQueue){
         taskQueue.push(Engine::Task(getDbFunc(message)));
+    }
+
+    static void createPresetTask(const ControlMessage& message, std::queue<Engine::Task>& taskQueue) {
+        auto func = [message](Workflow&, Context& context, cv::Mat&){
+            context.opFlags = static_cast<unsigned>(message.opFlags.to_ulong());
+            context.boxSize = message.boxSize;
+            return true;
+        };
+        taskQueue.push(Engine::Task(func));
     }
 
     using TaskFunction = std::function<Engine::TaskResult(Workflow&, Context&, cv::Mat&)>;
@@ -145,8 +154,8 @@ cv::Mat Engine::read() {
 }
 
 void Engine::changePreset(const ControlMessage& message) {
-    context->opFlags = static_cast<unsigned>(message.opFlags.to_ulong());
-    context->boxSize = message.boxSize;
+    std::lock_guard<std::mutex> lock(mutex);
+    Dispatcher::createPresetTask(message, taskQueue);
 }
 
 void Engine::executeOnce(const CmdMessage& message) {

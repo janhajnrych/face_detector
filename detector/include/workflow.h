@@ -14,6 +14,8 @@
 #include "component.h"
 #include "exception.h"
 #include "../include/stabilizer.h"
+#include <Eigen/Dense>
+
 
 class FaceDetector;
 class ImageDb;
@@ -54,7 +56,13 @@ private:
     static cv::Rect getLargestRect(const std::vector<cv::Rect>& faces);
     std::string getFilename(const std::string& name) const;
     static cv::Rect clipRect(cv::Size size, cv::Rect rect);
-
+    struct NameScores {
+        Eigen::VectorXf scores;
+        Eigen::VectorXf scoreBuffer;
+        Eigen::VectorXd indices;
+    };
+    NameScores nameScores;
+    void resetNameScores();
 };
 
 

@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
+#include <Eigen/Dense>
+
 
 class Classifier;
 
@@ -29,11 +31,15 @@ public:
     void removeAt(unsigned index);
     bool removeByName(const std::string& name);
     std::optional<Item> findSimilar(cv::Mat refEmbeddings) const;
+    Eigen::VectorXf getDistances(cv::Mat refEmbeddings) const;
+    void getScores(Eigen::VectorXf& result, cv::Mat refEmbedding, float threshold) const;
+    Eigen::VectorXd getIndices() const;
     size_t size() const;
     void clear();
     Item operator[](unsigned index) const;
 private:
     std::list<Item> items;
+    unsigned nextId = 0;
 };
 
 
