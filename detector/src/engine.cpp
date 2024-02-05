@@ -11,13 +11,18 @@
 class Context {
 public:
 
-    cv::Mat execute(const cv::Mat& frame, Workflow& workflow) {
+    cv::Mat execute(const cv::Mat& frame, Workflow& workflow, Camera& camera) {
         auto flags = ControlFlags(opFlags);
         if (flags.any())
             workflow.detectFaces(frame, static_cast<float>(boxSize) * 0.01f);
         cv::Mat result = frame;
-        if (flags[ImageOperation::Detection])
-            result = workflow.drawFaceRects(result, flags[ImageOperation::Stablization]);
+        if (flags[ImageOperation::Detection]){
+            if (flags[ImageOperation::Stablization]){
+                result = workflow.drawFaceRects(result, getTimeStep(camera));
+            } else {
+                result = workflow.drawFaceRects(result);
+            }
+        }
         if (flags[ImageOperation::Recognition]){
             auto offset = flags[ImageOperation::Detection] ? -0.5 : 0.0;
             result = workflow.drawFaceNames(result, offset);
@@ -25,6 +30,10 @@ public:
         if (flags[ImageOperation::Segmentation])
             result = workflow.segment(result);
         return result;
+    }
+
+    static float getTimeStep(const Camera& camera){
+        return 1.0/(static_cast<float>(camera.getFps())+1e-6);
     }
 
     std::atomic<unsigned> opFlags;
@@ -97,6 +106,7 @@ void Engine::start() {
     finished = false;
     cameraThread = std::thread([&](){
         camera.start();
+        workflow->setTimeStep(Context::getTimeStep(camera));
         while (camera.isRunning() && !finished) {
             camera.next();
             if (BuildInfo::isDebug())
@@ -117,7 +127,7 @@ void Engine::start() {
         while (!finished) {
             auto frame = inputRail.readMove();
             execCommands(frame);
-            frame = context->execute(frame, *workflow);
+            frame = context->execute(frame, *workflow, camera);
             outputBuffer.write(frame);
         }
     });

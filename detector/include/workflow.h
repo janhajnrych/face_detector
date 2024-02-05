@@ -29,8 +29,10 @@ class Workflow: Component
 public:
     using Exception = ComponentException<Workflow>;
     explicit Workflow();
+    void setTimeStep(float dt);
     void detectFaces(cv::Mat frame, float relativeBoxSize = 1.0);
-    cv::Mat drawFaceRects(cv::Mat image, bool stabilized);
+    cv::Mat drawFaceRects(cv::Mat image, float trackPeriod);
+    cv::Mat drawFaceRects(cv::Mat image);
     static cv::Mat getSlice(cv::Mat image, cv::Rect rect);
     const std::vector<cv::Rect>& getAllFaces() const;
     std::vector<cv::Rect> getLargerFaces(unsigned minArea) const;

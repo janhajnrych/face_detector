@@ -8,6 +8,7 @@
 KalmanFilter::KalmanFilter(unsigned nDim, float noise_level):
     d(nDim),
     A(MatrixXd::Identity(d, d)),
+    B(MatrixXd::Identity(d, d)),
     H(MatrixXd::Identity(d, d)),
     Q(MatrixXd::Zero(d, d)),
     R(MatrixXd::Constant(d, d, noise_level)),
@@ -22,6 +23,14 @@ KalmanFilter::KalmanFilter(unsigned nDim, float noise_level):
 
 void KalmanFilter::setGuess(const VectorXd z) {
     x = z;
+}
+
+void KalmanFilter::setModelTransform(const MatrixXd a) {
+    this->A = a;
+}
+
+MatrixXd KalmanFilter::getModelTransform() const {
+    return A;
 }
 
 void KalmanFilter::calcGain() {

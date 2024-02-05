@@ -47,6 +47,10 @@ Workflow::Workflow():
     resetNameScores();
 }
 
+void Workflow::setTimeStep(float dt) {
+    stabilizer->setTimeStep(dt);
+}
+
 
 void Workflow::resetNameScores() {
     nameScores.scores = Eigen::VectorXf::Constant(imageDb->size(), 0.0);
@@ -82,7 +86,7 @@ cv::Mat Workflow::getSlice(cv::Mat image, cv::Rect rect) {
     return image(clipRect(image.size(), rect));
 }
 
-cv::Mat Workflow::drawFaceRects(cv::Mat image, bool stabilized) {
+cv::Mat Workflow::drawFaceRects(cv::Mat image) {
     static constexpr double alpha = 0.33;
     cv::Mat overlay;
     image.copyTo(overlay);
@@ -90,19 +94,28 @@ cv::Mat Workflow::drawFaceRects(cv::Mat image, bool stabilized) {
     largest_iter = std::max_element(detections.begin(), detections.end(), [](auto a, auto b){
         return a.area() < b.area();
     });
-    if (!stabilized) {
-        stabilizer->setHint(*largest_iter);
-        largest_iter = detections.end();
+    stabilizer->setHint(*largest_iter);
+    for(auto it = detections.begin(); it != detections.end(); ++it) {
+        auto rect = *it;
+        cv::rectangle(image, rect.tl(), rect.br(), defaultColor, 4);
+        cv::rectangle(overlay, rect.tl(), rect.br(), defaultColor, -1);
+        cv::addWeighted(overlay, alpha, image, 1 - alpha, 0, image);
     }
-    else if (largest_iter == detections.end()){
-        auto stabilizedRect = stabilizer->stabilize();
-        cv::rectangle(image, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, 4);
-        cv::rectangle(overlay, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, -1);
-    }
+    return image;
+}
+
+cv::Mat Workflow::drawFaceRects(cv::Mat image, float trackPeriod) {
+    static constexpr double alpha = 0.33;
+    cv::Mat overlay;
+    image.copyTo(overlay);
+    auto largest_iter = detections.end();
+    largest_iter = std::max_element(detections.begin(), detections.end(), [](auto a, auto b){
+        return a.area() < b.area();
+    });
     for(auto it = detections.begin(); it != detections.end(); ++it) {
         auto rect = *it;
         if (it == largest_iter) {
-            auto stabilizedRect = stabilizer->stabilize(rect);
+            auto stabilizedRect = stabilizer->stabilize(rect, trackPeriod);
             cv::rectangle(image, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, 4);
             cv::rectangle(overlay, stabilizedRect.tl(), stabilizedRect.br(), stabilizedColor, -1);
         }
